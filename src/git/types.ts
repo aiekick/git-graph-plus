@@ -208,3 +208,14 @@ export interface ContentSearch {
   /** false: `git log -S` (occurrence count changes); true: `-G` (regex in changed lines). */
   regex: boolean;
 }
+
+/** Scope of the stats view. */
+export interface StatsFilter {
+  /** Inclusive YYYY-MM-DD bounds (author date). */
+  since?: string;
+  until?: string;
+  /** 'all' refs, the 'current' branch (HEAD) or a branch name. */
+  scope: string;
+  /** Only changes under this file or folder. */
+  path?: string;
+}

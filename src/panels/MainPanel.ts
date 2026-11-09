@@ -6,7 +6,8 @@ import { formatGitError, isAuthFailure, transportFromRemoteUrl } from '../git/gi
 import { splitUpstreamRef } from '../git/git-parser';
 import { samePath } from '../utils/path';
 import { buildXlsx } from '../utils/xlsx-writer';
-import type { HistoryFilter, ContentSearch } from '../git/types';
+import type { HistoryFilter, ContentSearch, StatsFilter } from '../git/types';
+import type { StatsReport } from '../git/stats-report';
 import { revisionUri } from '../services/revision-content-provider';
 import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars, readCsvDelimiter } from '../utils/config';
 import { buildClassicRebaseCommand } from '../git/classic-rebase';
@@ -55,6 +56,9 @@ export class MainPanel {
   private historyFilter: HistoryFilter | null = null;
   /** "Search in changes" filter shown in the graph (null = none). */
   private contentSearch: ContentSearch | null = null;
+  /** Stats reports per filter, dropped whenever the repository changes. */
+  private statsCache = new Map<string, StatsReport>();
+  private statsSequence = 0;
   private isFirstGetLog = true;
   private logSequence = 0;
   private searchSequence = 0;
@@ -410,6 +414,7 @@ export class MainPanel {
     this.currentBranchFilter = undefined;
     this.historyFilter = null;
     this.contentSearch = null;
+    this.statsCache.clear();
     this.post({ type: 'branchPrefs', payload: this.readBranchPrefs() });
 
     const oldWatcher = this.fileWatcher;
@@ -513,6 +518,30 @@ export class MainPanel {
         case 'setContentSearch': {
           const text = message.payload.text.trim();
           this.contentSearch = text ? { text, regex: message.payload.regex } : null;
+          await this.refreshAll('status');
+          break;
+        }
+        case 'getStatsReport': {
+          const filter = message.payload;
+          const key = JSON.stringify(filter);
+          const seq = ++this.statsSequence;
+          try {
+            let report = this.statsCache.get(key);
+            if (!report) {
+              report = await this.gitService.statsReport(filter);
+              this.statsCache.set(key, report);
+            }
+            if (seq !== this.statsSequence) break; // a newer filter was asked for
+            this.post({ type: 'statsReport', payload: { filter, report } });
+          } catch (err) {
+            if (seq !== this.statsSequence) break;
+            this.post({ type: 'statsReport', payload: { filter, report: null, error: err instanceof Error ? err.message : String(err) } });
+          }
+          break;
+        }
+        case 'showPathHistory': {
+          // From the stats view: show the graph restricted to a file / folder.
+          this.historyFilter = { path: message.payload.path };
           await this.refreshAll('status');
           break;
         }
@@ -1445,7 +1474,7 @@ export class MainPanel {
             xlsx: { ext: 'xlsx', filter: 'Excel', title: 'exportSelectionXlsxTitle' },
           }[exp.format];
           const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(path.join(this.repoPath, `git-graph-selection.${kind.ext}`)),
+            defaultUri: vscode.Uri.file(path.join(this.repoPath, `${exp.fileName ?? 'git-graph-selection'}.${kind.ext}`)),
             filters: { [kind.filter]: [kind.ext] },
             title: vscode.l10n.t(kind.title),
           });
@@ -2091,6 +2120,7 @@ export class MainPanel {
   }
 
   private async onRepoChanged(what: string): Promise<void> {
+    this.statsCache.clear();
     this.post({
       type: 'repoChanged',
       payload: { what },

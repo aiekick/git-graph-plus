@@ -1,5 +1,6 @@
 import type { XlsxTable } from './xlsx-writer';
-import type { CommitGraphData, BranchData, DiffData, Commit, WorktreeInfo, CommitSignature, FileStat } from '../git/types';
+import type { CommitGraphData, BranchData, DiffData, Commit, WorktreeInfo, CommitSignature, FileStat, StatsFilter } from '../git/types';
+import type { StatsReport } from '../git/stats-report';
 
 export interface LinkRule {
   pattern: string;
@@ -122,7 +123,10 @@ export type WebviewMessage =
   | { type: 'setBranchPinned'; payload: { ref: string; pinned: boolean } }
   | { type: 'unhideAllBranches' }
   | { type: 'openWorkingFileAtLine'; payload: { ref: string; path: string; line: number } }
-  | { type: 'saveSelectionExport'; payload: { format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable } }
+  // fileName: default name (no extension) offered in the save dialog
+  | { type: 'saveSelectionExport'; payload: ({ format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable }) & { fileName?: string } }
+  | { type: 'getStatsReport'; payload: StatsFilter }
+  | { type: 'showPathHistory'; payload: { path: string } }
   | { type: 'saveCommitPatch'; payload: { hash: string; paths?: string[] } }
   | { type: 'restoreStashFiles'; payload: { index: number; paths: string[] } }
   | { type: 'compareToWorking'; payload: { hash: string } }
@@ -179,6 +183,7 @@ export type ExtensionMessage =
   | { type: 'setCsvDelimiter'; payload: { delimiter: string } }
   | { type: 'fileLines'; payload: { requestId: string; lines: string[] | null } }
   | { type: 'branchPrefs'; payload: { hidden: string[]; pinned: string[] } }
+  | { type: 'statsReport'; payload: { filter: StatsFilter; report: StatsReport | null; error?: string } }
   | { type: 'selectionFileStats'; payload: { requestId: string; stats: Record<string, FileStat[]> | null; error?: string } }
   | { type: 'setCommitLinkRules'; payload: { rules: LinkRule[] } }
   | { type: 'repoList'; payload: { repos: Array<{ path: string; name: string; type: 'root' | 'submodule' | 'nested' }>; active: string } }

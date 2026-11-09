@@ -17,7 +17,8 @@ import { parseLog, parseBranches, parseTags, parseRemotes, parseStashList, parse
 import { buildReversePatch } from './patch-builder';
 import { mapOldLineToNew } from './line-map';
 import { parseRevListParents, rewriteParents } from './parent-rewrite';
-import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature, FileStat } from './types';
+import { buildStatsReport, type StatsReport } from './stats-report';
+import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature, FileStat, StatsFilter } from './types';
 
 export class GitError extends Error {
   constructor(
@@ -2241,6 +2242,39 @@ export class GitService {
       const [weekday, hour] = key.split('-').map(Number);
       return { weekday, hour, count };
     });
+  }
+
+  /**
+   * Statistics for the stats view (see stats-report.ts), from one numstat log
+   * over the chosen scope: all refs, the current branch or a given branch,
+   * optionally limited to a period (YYYY-MM-DD bounds, inclusive) and a path.
+   * Merge commits are left out (they carry no own changes).
+   */
+  async statsReport(filter: StatsFilter): Promise<StatsReport> {
+    const args = ['log', '--no-merges', '--numstat', '--format=%x01%H%x00%ae%x00%an%x00%aI'];
+    const ymd = /^\d{4}-\d{2}-\d{2}$/;
+    if (filter.since) {
+      if (!ymd.test(filter.since)) throw new GitError(`Invalid date: ${filter.since}`, null, ['log']);
+      args.push(`--since=${filter.since} 00:00:00`);
+    }
+    if (filter.until) {
+      if (!ymd.test(filter.until)) throw new GitError(`Invalid date: ${filter.until}`, null, ['log']);
+      args.push(`--until=${filter.until} 23:59:59`);
+    }
+    if (filter.scope === 'all') {
+      args.push('--glob=refs/heads', '--glob=refs/remotes', '--glob=refs/tags');
+    } else if (filter.scope === 'current') {
+      args.push('HEAD');
+    } else {
+      this.assertSafeRef(filter.scope, 'log');
+      args.push(filter.scope);
+    }
+    if (filter.path) {
+      this.assertSafePath(filter.path, 'log');
+      args.push('--', filter.path);
+    }
+    const raw = await this.exec(args, { silent: true, timeout: Math.max(this.defaultTimeoutMs, 300_000) });
+    return buildStatsReport(raw);
   }
 
   // --- Patch ---
