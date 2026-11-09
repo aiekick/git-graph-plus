@@ -6,6 +6,9 @@ class BranchStore {
   remotes = $state<RemoteInfo[]>([]);
   stashes = $state<StashEntry[]>([]);
   worktrees = $state<WorktreeInfo[]>([]);
+  /** Branches hidden from the graph / pinned, as full ref names. */
+  hiddenRefs = $state<string[]>([]);
+  pinnedRefs = $state<string[]>([]);
 
   // Derived so they only recompute when `branches` changes, not on every
   // access. currentBranch in particular is read many times while building a

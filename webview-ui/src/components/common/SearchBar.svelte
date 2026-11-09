@@ -19,6 +19,8 @@
     /** Filters the graph to commits whose changes contain the query
      *  (`/.../` → regex). Hidden when not provided. */
     onSearchInChanges?: (text: string, regex: boolean) => void;
+    /** Pinned branches (full ref names), listed first in the branch filter. */
+    pinnedRefs?: string[];
   }
 
   let {
@@ -33,7 +35,17 @@
     headOffscreen = false,
     onJumpToHead = () => {},
     onSearchInChanges,
+    pinnedRefs = [],
   }: Props = $props();
+
+  // Pinned branches as the names the branch filter uses (local "x", remote
+  // "origin/x"), in pin order, limited to branches that still exist.
+  const pinnedNames = $derived.by(() => {
+    const existing = new Set(branches.map(b => b.name));
+    return pinnedRefs
+      .map(r => r.replace(/^refs\/(heads|remotes)\//, ''))
+      .filter(n => existing.has(n));
+  });
 
   // `/pattern/` searches changed lines with a regex (git log -G); anything
   // else looks for commits adding/removing that exact text (git log -S).
@@ -345,6 +357,23 @@
           <input type="checkbox" checked={!branchFilterActive} readonly />
           {t('search.allBranches')}
         </button>
+        {#if pinnedNames.length > 0}
+          <button class="dd-item" onclick={() => onBranchFilterChange([...pinnedNames])}>
+            <i class="codicon codicon-pinned remote-icon"></i>
+            {t('search.pinnedOnly')}
+          </button>
+          {@const pinnedShown = pinnedNames.filter(n => !branchQuery.trim() || n.toLowerCase().includes(branchQuery.trim().toLowerCase()))}
+          {#if pinnedShown.length > 0}
+            <div class="dd-sep"></div>
+            <div class="dd-section-header"><i class="codicon codicon-pinned remote-icon"></i>{t('search.pinned')}</div>
+            {#each pinnedShown as name}
+              <button class="dd-item" class:active={branchFilter.includes(name)} onclick={() => toggleBranch(name)}>
+                <input type="checkbox" checked={branchFilter.includes(name)} readonly />
+                {name}
+              </button>
+            {/each}
+          {/if}
+        {/if}
         {#if filteredByQuery(localBranches).length > 0}
           <div class="dd-sep"></div>
           <div class="dd-section-header">LOCAL</div>

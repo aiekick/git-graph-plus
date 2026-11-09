@@ -182,6 +182,9 @@ export interface LogOptions {
   history?: HistoryFilter;
   /** Only commits whose diff adds/removes this text (parents rewritten). */
   contentSearch?: ContentSearch;
+  /** Full ref names (refs/heads/x, refs/remotes/o/x) left out of the graph:
+   *  not walked from, and their labels hidden. */
+  hiddenRefs?: string[];
 }
 
 /** Per-file line counts of a commit (`git log --numstat`); null for binary files. */

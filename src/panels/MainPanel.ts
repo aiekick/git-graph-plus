@@ -37,6 +37,8 @@ export class MainPanel {
   // globalStorage so every VS Code window reuses the same avatars instead of
   // each one re-fetching from gravatar.com (issue #38).
   private static avatarCacheDir: string | undefined = undefined;
+  // Per-repo branch preferences (hidden / pinned), kept in workspaceState.
+  private static stateStore: vscode.Memento | undefined = undefined;
   private static avatarCache: AvatarCache | undefined = undefined;
 
   private readonly panel: vscode.WebviewPanel;
@@ -88,6 +90,26 @@ export class MainPanel {
     if (this.currentPanel) {
       this.currentPanel.gitService.setExtraEnv(env);
     }
+  }
+
+  /** Where per-repo branch preferences (hidden / pinned) are persisted. */
+  public static setStateStore(store: vscode.Memento): void {
+    MainPanel.stateStore = store;
+  }
+
+  private branchPrefsKey(): string {
+    return `gitGraphPlus.branchPrefs:${this.repoPath}`;
+  }
+
+  /** Hidden / pinned branches of the current repo, as full ref names. */
+  private readBranchPrefs(): { hidden: string[]; pinned: string[] } {
+    const raw = MainPanel.stateStore?.get<{ hidden?: string[]; pinned?: string[] }>(this.branchPrefsKey());
+    return { hidden: raw?.hidden ?? [], pinned: raw?.pinned ?? [] };
+  }
+
+  private async writeBranchPrefs(prefs: { hidden: string[]; pinned: string[] }): Promise<void> {
+    await MainPanel.stateStore?.update(this.branchPrefsKey(), prefs);
+    this.post({ type: 'branchPrefs', payload: prefs });
   }
 
   /** Directory for the persistent avatar cache (typically under globalStorage). */
@@ -278,6 +300,7 @@ export class MainPanel {
     this.post({ type: 'setInteractiveRebaseMode', payload: { mode: readInteractiveRebaseMode() } });
     this.post({ type: 'setShowAvatars', payload: { enabled: readShowAvatars() } });
     this.post({ type: 'setCsvDelimiter', payload: { delimiter: readCsvDelimiter() } });
+    this.post({ type: 'branchPrefs', payload: this.readBranchPrefs() });
     void this.postCommitLinkRules();
 
     this.panel.webview.onDidReceiveMessage(
@@ -387,6 +410,7 @@ export class MainPanel {
     this.currentBranchFilter = undefined;
     this.historyFilter = null;
     this.contentSearch = null;
+    this.post({ type: 'branchPrefs', payload: this.readBranchPrefs() });
 
     const oldWatcher = this.fileWatcher;
     oldWatcher.dispose();
@@ -454,7 +478,7 @@ export class MainPanel {
           this.isFirstGetLog = false;
           this.currentRemoteFilter = effectiveFilter;
           this.currentBranchFilter = effectiveBranchFilter;
-          const logPayload = { ...message.payload, remoteFilter: effectiveFilter, branches: effectiveBranchFilter, limit: requestedLimit + 1, sortOrder, includeSignature, history: this.historyFilter ?? undefined, contentSearch: this.contentSearch ?? undefined };
+          const logPayload = { ...message.payload, remoteFilter: effectiveFilter, branches: effectiveBranchFilter, limit: requestedLimit + 1, sortOrder, includeSignature, history: this.historyFilter ?? undefined, contentSearch: this.contentSearch ?? undefined, hiddenRefs: this.readBranchPrefs().hidden };
           const seq = ++this.logSequence;
           const [allFetched, logBranches] = await Promise.all([
             this.gitService.log(logPayload),
@@ -490,6 +514,28 @@ export class MainPanel {
           const text = message.payload.text.trim();
           this.contentSearch = text ? { text, regex: message.payload.regex } : null;
           await this.refreshAll('status');
+          break;
+        }
+        case 'setBranchHidden': {
+          const prefs = this.readBranchPrefs();
+          const { ref, hidden } = message.payload;
+          const set = new Set(prefs.hidden);
+          if (hidden) set.add(ref); else set.delete(ref);
+          await this.writeBranchPrefs({ ...prefs, hidden: [...set] });
+          await this.refreshAll('status');
+          break;
+        }
+        case 'unhideAllBranches': {
+          await this.writeBranchPrefs({ ...this.readBranchPrefs(), hidden: [] });
+          await this.refreshAll('status');
+          break;
+        }
+        case 'setBranchPinned': {
+          const prefs = this.readBranchPrefs();
+          const { ref, pinned } = message.payload;
+          const list = prefs.pinned.filter(r => r !== ref);
+          if (pinned) list.push(ref);
+          await this.writeBranchPrefs({ ...prefs, pinned: list });
           break;
         }
         case 'clearContentSearch': {
@@ -1940,7 +1986,7 @@ export class MainPanel {
       const branchFilter = this.isFirstGetLog ? MainPanel.savedBranchFilter : this.currentBranchFilter;
       const history = this.historyFilter;
       const contentSearch = this.contentSearch;
-      const logArgs = { limit: refreshLimit + 1, sortOrder, remoteFilter, branches: branchFilter, includeSignature, history: history ?? undefined, contentSearch: contentSearch ?? undefined };
+      const logArgs = { limit: refreshLimit + 1, sortOrder, remoteFilter, branches: branchFilter, includeSignature, history: history ?? undefined, contentSearch: contentSearch ?? undefined, hiddenRefs: this.readBranchPrefs().hidden };
 
       const buildLogData = (allFetched: Awaited<ReturnType<typeof this.gitService.log>>, branches: Awaited<ReturnType<typeof this.gitService.branches>>) => {
         const hasMore = allFetched.length > refreshLimit;

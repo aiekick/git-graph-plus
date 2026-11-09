@@ -346,6 +346,35 @@
 
   let isSearchActive = $derived(searchMatchedHashes !== null);
 
+  // ── Hidden / pinned branches (full ref names, persisted per repo) ──
+  const pinnedSet = $derived(new Set(branchStore.pinnedRefs));
+  function refFullName(ref: { type: string; name: string; remote?: string }): string | null {
+    if (ref.type === 'branch' || ref.type === 'head') return `refs/heads/${ref.name}`;
+    if (ref.type === 'remote-branch' && ref.remote) return `refs/remotes/${ref.remote}/${ref.name}`;
+    return null;
+  }
+  function isPinnedRef(ref: { type: string; name: string; remote?: string }): boolean {
+    const full = refFullName(ref);
+    return !!full && pinnedSet.has(full);
+  }
+  /** "Pin / Unpin" and "Hide in graph" entries of a branch's context submenu. */
+  function branchPrefItems(fullRef: string) {
+    const pinned = pinnedSet.has(fullRef);
+    return [
+      {
+        label: pinned ? t('graph.unpinBranch') : t('graph.pinBranch'),
+        icon: pinned ? 'pinned' : 'pin',
+        action: () => vscode.postMessage({ type: 'setBranchPinned', payload: { ref: fullRef, pinned: !pinned } }),
+      },
+      {
+        label: t('graph.hideBranch'),
+        icon: 'eye-closed',
+        action: () => vscode.postMessage({ type: 'setBranchHidden', payload: { ref: fullRef, hidden: true } }),
+      },
+      { separator: true, label: '', action: () => {} },
+    ];
+  }
+
   let displayCommits = $derived(commitStore.commits);
   let displayPaths = $derived(commitStore.paths);
   let displayLinks = $derived(commitStore.links);
@@ -960,6 +989,7 @@
                 danger: true,
               },
               { separator: true, label: '', action: () => {} },
+              ...branchPrefItems(`refs/heads/${branchName}`),
               {
                 label: t('graph.copyBranchName'),
                 action: () => vscode.postMessage({ type: 'copyToClipboard', payload: { text: branchName } }),
@@ -1003,6 +1033,7 @@
                 danger: true,
               },
               { separator: true, label: '', action: () => {} },
+              ...branchPrefItems(`refs/heads/${branchName}`),
               {
                 label: t('graph.copyBranchName'),
                 action: () => vscode.postMessage({ type: 'copyToClipboard', payload: { text: branchName } }),
@@ -1032,6 +1063,7 @@
               danger: true,
             },
             { separator: true, label: '', action: () => {} },
+            ...branchPrefItems(`refs/remotes/${fullName}`),
             {
               label: t('graph.copyBranchName'),
               action: () => vscode.postMessage({ type: 'copyToClipboard', payload: { text: fullName } }),
@@ -1684,6 +1716,7 @@
                       }
                     }}
                   >
+                    {#if isPinnedRef(ref)}<i class="codicon codicon-pinned ref-icon"></i>{/if}
                     {#if ref.type === 'head'}
                       <i class="codicon codicon-check ref-icon"></i>
                       {#if worktreeBranches.has(ref.name)}<i class="codicon codicon-worktree ref-icon"></i>{/if}

@@ -99,6 +99,10 @@ import AmendModal from './components/modals/AmendModal.svelte';
         case 'branchData':
           branchStore.setData(msg.payload);
           break;
+        case 'branchPrefs':
+          branchStore.hiddenRefs = msg.payload.hidden;
+          branchStore.pinnedRefs = msg.payload.pinned;
+          break;
         case 'fullRefresh':
           remoteFilter = msg.payload.logData.remoteFilter ?? [];
           branchFilter = msg.payload.logData.branches ?? [];
@@ -488,6 +492,7 @@ import AmendModal from './components/modals/AmendModal.svelte';
           {headOffscreen}
           onJumpToHead={handleJumpToHead}
           onSearchInChanges={(text, regex) => vscode.postMessage({ type: 'setContentSearch', payload: { text, regex } })}
+          pinnedRefs={branchStore.pinnedRefs}
         />
       {/if}
       {#if commitStore.history}
@@ -499,6 +504,15 @@ import AmendModal from './components/modals/AmendModal.svelte';
           badge={h.startLine === undefined ? undefined : h.startLine === h.endLine ? `L${h.startLine}` : `L${h.startLine}–${h.endLine}`}
           note={t('history.renamesNote')}
           onClear={() => vscode.postMessage({ type: 'clearHistoryFilter' })}
+        />
+      {/if}
+      {#if branchStore.hiddenRefs.length > 0}
+        <FilterBanner
+          icon="eye-closed"
+          label={t('hidden.label', { count: branchStore.hiddenRefs.length })}
+          value={branchStore.hiddenRefs.map(r => r.replace(/^refs\/(heads|remotes)\//, '')).join(', ')}
+          clearLabel={t('hidden.showAll')}
+          onClear={() => vscode.postMessage({ type: 'unhideAllBranches' })}
         />
       {/if}
       {#if commitStore.contentSearch}

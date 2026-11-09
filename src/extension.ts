@@ -40,6 +40,9 @@ export function activate(context: vscode.ExtensionContext) {
   // the same avatars instead of re-fetching from gravatar.com (issue #38).
   MainPanel.setAvatarCacheDir(vscode.Uri.joinPath(context.globalStorageUri, 'avatars').fsPath);
 
+  // Hidden / pinned branches are remembered per repo in this workspace.
+  MainPanel.setStateStore(context.workspaceState);
+
   // Read-only "file at revision" documents opened from the diff view.
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, new RevisionContentProvider()),

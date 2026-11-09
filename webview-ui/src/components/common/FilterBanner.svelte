@@ -10,10 +10,12 @@
     value: string;
     badge?: string;
     note?: string;
+    /** Text of the button that removes the filter. */
+    clearLabel?: string;
     onClear: () => void;
   }
 
-  let { icon, label, value, badge, note, onClear }: Props = $props();
+  let { icon, label, value, badge, note, clearLabel, onClear }: Props = $props();
 </script>
 
 <div class="filter-banner" role="status">
@@ -24,7 +26,7 @@
   {#if note}<span class="note" use:tooltip={note}><i class="codicon codicon-info"></i></span>{/if}
   <button class="clear" onclick={onClear}>
     <i class="codicon codicon-close"></i>
-    <span>{t('history.showAll')}</span>
+    <span>{clearLabel ?? t('history.showAll')}</span>
   </button>
 </div>
 

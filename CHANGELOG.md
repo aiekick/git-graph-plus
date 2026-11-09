@@ -8,6 +8,7 @@
 - **Restore a File Version** - Right-click a file in a commit's details to restore it in the working tree as it was at that commit, or just before it (several selected files at once). The index is left untouched; a file absent at that revision is deleted. A confirmation lists what will be overwritten.
 - **File & Line History** - "Git Graph+: Show File History" (explorer, editor tab and editor context menus) opens the graph restricted to the commits touching that file; "Show Line History" (editor context menu) restricts it to the commits touching the selected lines (`git log -L`). Parents are rewritten so the filtered history stays a connected graph; a banner shows the filter and goes back to the full history. Renames are not followed.
 - **Search in Changes** - A new button in the search box restricts the graph to the commits whose changes add or remove the typed text (`git log -S`), or whose changed lines match `/regex/` (`git log -G`). Matches are reconnected through the skipped commits so the result stays a graph; a banner shows the search and goes back to the full history. Works together with the file history filter.
+- **Hide & Pin Branches** - A branch's context menu in the graph can pin it or hide it, remembered per repository. Hidden branches (and the commits only they reach) leave the graph and their labels disappear; a banner lists them with "Show all branches". Pinned branches get a pin on their label and come first in the branch filter, which also offers "Show only pinned branches".
 
 ## 0.7.4 (unreleased)
 

@@ -487,6 +487,15 @@ export class GitService {
       `--format=${format}`,
     ];
 
+    // Hidden branches: --exclude keeps the following --glob from walking them,
+    // --decorate-refs-exclude drops their labels from %D. Must precede the globs.
+    for (const ref of options?.hiddenRefs ?? []) {
+      if (!/^refs\/(heads|remotes)\/[^\s\x00-\x1f\x7f]+$/.test(ref)) {
+        throw new GitError(`Invalid hidden ref: ${ref}`, null, ['log']);
+      }
+      args.push(`--exclude=${ref}`, `--decorate-refs-exclude=${ref}`);
+    }
+
     if (options?.branches && options.branches.length > 0) {
       for (const branch of options.branches) {
         this.assertSafeRef(branch, 'log');

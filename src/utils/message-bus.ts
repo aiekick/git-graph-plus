@@ -117,6 +117,10 @@ export type WebviewMessage =
   | { type: 'clearHistoryFilter' }
   | { type: 'setContentSearch'; payload: { text: string; regex: boolean } }
   | { type: 'clearContentSearch' }
+  // ref: full ref name (refs/heads/x, refs/remotes/origin/x)
+  | { type: 'setBranchHidden'; payload: { ref: string; hidden: boolean } }
+  | { type: 'setBranchPinned'; payload: { ref: string; pinned: boolean } }
+  | { type: 'unhideAllBranches' }
   | { type: 'openWorkingFileAtLine'; payload: { ref: string; path: string; line: number } }
   | { type: 'saveSelectionExport'; payload: { format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable } }
   | { type: 'saveCommitPatch'; payload: { hash: string; paths?: string[] } }
@@ -174,6 +178,7 @@ export type ExtensionMessage =
   | { type: 'setShowAvatars'; payload: { enabled: boolean } }
   | { type: 'setCsvDelimiter'; payload: { delimiter: string } }
   | { type: 'fileLines'; payload: { requestId: string; lines: string[] | null } }
+  | { type: 'branchPrefs'; payload: { hidden: string[]; pinned: string[] } }
   | { type: 'selectionFileStats'; payload: { requestId: string; stats: Record<string, FileStat[]> | null; error?: string } }
   | { type: 'setCommitLinkRules'; payload: { rules: LinkRule[] } }
   | { type: 'repoList'; payload: { repos: Array<{ path: string; name: string; type: 'root' | 'submodule' | 'nested' }>; active: string } }
