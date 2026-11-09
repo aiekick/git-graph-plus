@@ -117,5 +117,6 @@
   "exportSelectionMarkdownTitle": "将所选提交导出为 Markdown 文件",
   "exportSelectionCsvTitle": "将所选提交导出为 CSV 文件",
   "selectionExported": "已将所选内容导出到 {0}",
-  "openFile": "打开"
+  "openFile": "打开",
+  "exportSelectionXlsxTitle": "将所选提交导出为 Excel 文件"
 }

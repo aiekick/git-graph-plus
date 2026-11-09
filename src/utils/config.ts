@@ -56,3 +56,16 @@ export function readInteractiveRebaseMode(): InteractiveRebaseMode {
 export function readShowAvatars(): boolean {
   return vscode.workspace.getConfiguration('gitGraphPlus').get<boolean>('showAvatars', true) !== false;
 }
+
+/** Delimiters offered by `gitGraphPlus.export.csvDelimiter`. */
+export const CSV_DELIMITERS = [';', ',', '\t', '|'] as const;
+export type CsvDelimiter = typeof CSV_DELIMITERS[number];
+
+/**
+ * Reads `gitGraphPlus.export.csvDelimiter` — the field separator of CSV
+ * exports. Defaults to `;` (what Excel expects in most non-English locales).
+ */
+export function readCsvDelimiter(): CsvDelimiter {
+  const raw = vscode.workspace.getConfiguration('gitGraphPlus').get<string>('export.csvDelimiter', ';');
+  return (CSV_DELIMITERS as readonly string[]).includes(raw) ? (raw as CsvDelimiter) : ';';
+}

@@ -5,7 +5,8 @@ import { GitService, GitError } from '../git/git-service';
 import { formatGitError, isAuthFailure, transportFromRemoteUrl } from '../git/git-error-formatter';
 import { splitUpstreamRef } from '../git/git-parser';
 import { samePath } from '../utils/path';
-import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars } from '../utils/config';
+import { buildXlsx } from '../utils/xlsx-writer';
+import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars, readCsvDelimiter } from '../utils/config';
 import { buildClassicRebaseCommand } from '../git/classic-rebase';
 import { buildFullGraph } from '../git/git-graph-builder';
 import { compileBranchColorRules, makeBranchColorResolver } from '../git/branch-color-resolver';
@@ -241,6 +242,9 @@ export class MainPanel {
         if (e.affectsConfiguration('gitGraphPlus.timeout')) {
           this.gitService.setDefaultTimeout(readTimeoutMs());
         }
+        if (e.affectsConfiguration('gitGraphPlus.export.csvDelimiter')) {
+          this.post({ type: 'setCsvDelimiter', payload: { delimiter: readCsvDelimiter() } });
+        }
         if (e.affectsConfiguration('gitGraphPlus.showAvatars')) {
           this.post({ type: 'setShowAvatars', payload: { enabled: readShowAvatars() } });
         }
@@ -260,6 +264,7 @@ export class MainPanel {
     this.post({ type: 'setLoadMoreCount', payload: { count: readLoadMoreCommitCount() } });
     this.post({ type: 'setInteractiveRebaseMode', payload: { mode: readInteractiveRebaseMode() } });
     this.post({ type: 'setShowAvatars', payload: { enabled: readShowAvatars() } });
+    this.post({ type: 'setCsvDelimiter', payload: { delimiter: readCsvDelimiter() } });
     void this.postCommitLinkRules();
 
     this.panel.webview.onDidReceiveMessage(
@@ -1278,20 +1283,28 @@ export class MainPanel {
         case 'saveSelectionExport': {
           // VS Code's own save dialog: on a remote window it opens on the remote
           // file system and offers "Show Local" to save on this machine instead.
-          const isCsv = message.payload.format === 'csv';
-          const ext = isCsv ? 'csv' : 'md';
+          const exp = message.payload;
+          const kind = {
+            markdown: { ext: 'md', filter: 'Markdown', title: 'exportSelectionMarkdownTitle' },
+            csv: { ext: 'csv', filter: 'CSV', title: 'exportSelectionCsvTitle' },
+            xlsx: { ext: 'xlsx', filter: 'Excel', title: 'exportSelectionXlsxTitle' },
+          }[exp.format];
           const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(path.join(this.repoPath, `git-graph-selection.${ext}`)),
-            filters: isCsv ? { CSV: ['csv'] } : { Markdown: ['md'] },
-            title: vscode.l10n.t(isCsv ? 'exportSelectionCsvTitle' : 'exportSelectionMarkdownTitle'),
+            defaultUri: vscode.Uri.file(path.join(this.repoPath, `git-graph-selection.${kind.ext}`)),
+            filters: { [kind.filter]: [kind.ext] },
+            title: vscode.l10n.t(kind.title),
           });
           if (!uri) break;
-          await vscode.workspace.fs.writeFile(uri, Buffer.from(message.payload.text, 'utf8'));
+          const data = exp.format === 'xlsx' ? buildXlsx(exp.table) : Buffer.from(exp.text, 'utf8');
+          await vscode.workspace.fs.writeFile(uri, data);
+          const where = uri.scheme === 'file' ? uri.fsPath : uri.toString();
+          if (exp.format === 'xlsx') {
+            // A workbook is not a text document: just report where it went.
+            vscode.window.showInformationMessage(vscode.l10n.t('selectionExported', where));
+            break;
+          }
           const open = vscode.l10n.t('openFile');
-          const choice = await vscode.window.showInformationMessage(
-            vscode.l10n.t('selectionExported', uri.scheme === 'file' ? uri.fsPath : uri.toString()),
-            open,
-          );
+          const choice = await vscode.window.showInformationMessage(vscode.l10n.t('selectionExported', where), open);
           if (choice === open) await vscode.window.showTextDocument(uri);
           break;
         }

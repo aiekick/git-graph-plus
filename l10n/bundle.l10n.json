@@ -117,5 +117,6 @@
   "exportSelectionMarkdownTitle": "Export selected commits to a Markdown file",
   "exportSelectionCsvTitle": "Export selected commits to a CSV file",
   "selectionExported": "Selection exported to {0}",
-  "openFile": "Open"
+  "openFile": "Open",
+  "exportSelectionXlsxTitle": "Export selected commits to an Excel file"
 }

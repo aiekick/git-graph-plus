@@ -24,6 +24,8 @@ class UiStore {
   operating = $state<string | null>(null);
   badgeBarWidth = $state(4);
   loadMoreCount = $state(50);
+  /** Field separator for CSV exports (`gitGraphPlus.export.csvDelimiter`). */
+  csvDelimiter = $state(';');
   interactiveRebaseMode = $state<InteractiveRebaseMode>('ui');
   // True while a file is selected in the commit-details panel. Owned (synced)
   // by CommitDetails; read by the global Esc handler so the first Esc deselects

@@ -444,6 +444,18 @@
           "default": true,
           "markdownDescription": "Show author avatars from gravatar.com in the graph, commit details, hover card and stats. Each avatar request sends the MD5 hash of the author's email to gravatar.com — the only network request Git Graph+ makes on its own. Turn it off to keep commit authors private (no request is sent)."
         },
+        "gitGraphPlus.export.csvDelimiter": {
+          "type": "string",
+          "enum": [";", ",", "\t", "|"],
+          "enumDescriptions": [
+            "Semicolon (what Excel expects in most non-English locales)",
+            "Comma",
+            "Tab",
+            "Pipe"
+          ],
+          "default": ";",
+          "markdownDescription": "Field delimiter used when copying or exporting a graph selection as CSV."
+        },
         "gitGraphPlus.branchBadgeBarThickness": {
           "type": "string",
           "enum": [

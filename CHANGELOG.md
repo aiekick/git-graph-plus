@@ -6,7 +6,9 @@ First release of the [aiekick/git-graph-plus](https://github.com/aiekick/git-gra
 
 ### New Features
 - **Avatar Privacy** - A new `gitGraphPlus.showAvatars` setting hides author avatars and stops every request to gravatar.com, the only network call Git Graph+ makes on its own. Changing it applies immediately to the open graph.
-- **Export Selection** - Right-click a multi-commit selection in the graph to copy it to the clipboard, or save it to a file, as a Markdown table or as CSV. Saving uses the VS Code save dialog, so on a remote window you can save on the remote or, with "Show Local", on your machine. Each graph lane gets a column, named after the branch at its tip (`●` marks the commit, `│` a lane passing through), followed by the tag, description, author, short SHA and date of each commit.
+- **Export Selection** - Right-click a multi-commit selection in the graph and use the **Copy to clipboard** submenu (Markdown, CSV) or the **Export to file** submenu (Markdown, CSV, Excel). Saving uses the VS Code save dialog, so on a remote window you can save on the remote or, with "Show Local", on your machine. Each graph lane gets a column, named after the branch at its tip (`●` marks the commit, `│` a lane passing through), followed by the tag, description, author, short SHA and date of each commit.
+- **Excel Export** - The selection can also be saved as an `.xlsx` workbook (no extra dependency): bold frozen header with filters, lane cells colored with their graph color, real date cells and fitted column widths.
+- **CSV Delimiter** - CSV exports use `;` by default; the new `gitGraphPlus.export.csvDelimiter` setting switches to `,`, tab or `|`.
 
 ## 0.7.3 (2026-06-30)
 

@@ -1,4 +1,5 @@
 import type { Commit, GraphDotData, GraphPathData } from './types';
+import { DEFAULT_GRAPH_COLORS, resolveGraphColor } from './utils/graph-color';
 
 /** Cell drawn where the commit sits on a lane. */
 export const COMMIT_MARK = '●';
@@ -8,6 +9,8 @@ export const PASS_MARK = '│';
 export interface ExportTable {
   headers: string[];
   rows: string[][];
+  /** Graph color of each lane column (the first `laneColors.length` columns). */
+  laneColors: string[];
 }
 
 export interface ExportLabels {
@@ -74,6 +77,7 @@ export function buildSelectionTable(
   dots: GraphDotData[],
   selected: Iterable<string>,
   labels: ExportLabels,
+  palette: string[] = DEFAULT_GRAPH_COLORS,
 ): ExportTable {
   const sel = new Set(selected);
   const rowIdx: number[] = [];
@@ -115,15 +119,17 @@ export function buildSelectionTable(
     return [...lanes, tags, c.subject, c.author.name, c.abbreviatedHash, formatDate(c.author.date)];
   });
 
-  return { headers, rows };
+  const laneColors = rails.map(r => resolveGraphColor(palette, paths[r].color, paths[r].colorOverride));
+  return { headers, rows, laneColors };
 }
 
-function csvField(v: string): string {
-  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+/** Quotes a field when it contains the delimiter, a quote or a line break. */
+function csvField(v: string, delimiter: string): string {
+  return v.includes(delimiter) || /["\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-export function toCsv(t: ExportTable): string {
-  return [t.headers, ...t.rows].map(r => r.map(csvField).join(',')).join('\n') + '\n';
+export function toCsv(t: ExportTable, delimiter = ';'): string {
+  return [t.headers, ...t.rows].map(r => r.map(v => csvField(v, delimiter)).join(delimiter)).join('\n') + '\n';
 }
 
 function mdCell(v: string): string {

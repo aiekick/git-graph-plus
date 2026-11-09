@@ -79,10 +79,17 @@ describe('formatters', () => {
   const t: ExportTable = {
     headers: ['main', 'Description'],
     rows: [['●', 'Fix "a, b" | c']],
+    laneColors: ['#63b0f4'],
   };
 
-  it('quotes CSV fields containing commas or quotes', () => {
-    expect(toCsv(t)).toBe('main,Description\n●,"Fix ""a, b"" | c"\n');
+  it('uses ; by default and quotes fields containing quotes', () => {
+    expect(toCsv(t)).toBe('main;Description\n●;"Fix ""a, b"" | c"\n');
+  });
+
+  it('honours a custom delimiter and quotes fields containing it', () => {
+    expect(toCsv(t, ',')).toBe('main,Description\n●,"Fix ""a, b"" | c"\n');
+    expect(toCsv({ ...t, rows: [['●', 'a;b']] })).toBe('main;Description\n●;"a;b"\n');
+    expect(toCsv({ ...t, rows: [['●', 'x']] }, '\t')).toBe('main\tDescription\n●\tx\n');
   });
 
   it('escapes pipes in Markdown tables', () => {

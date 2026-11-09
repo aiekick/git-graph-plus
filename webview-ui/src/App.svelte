@@ -121,6 +121,9 @@ import AmendModal from './components/modals/AmendModal.svelte';
         case 'setGraphColors':
           graphColorsStore.set(msg.payload.colors);
           break;
+        case 'setCsvDelimiter':
+          uiStore.csvDelimiter = msg.payload.delimiter;
+          break;
         case 'setShowAvatars':
           avatarStore.enabled = msg.payload.enabled;
           break;

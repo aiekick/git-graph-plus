@@ -840,33 +840,37 @@
           author: t('details.author'),
           sha: t('export.sha'),
           date: t('details.date'),
-        });
+        }, graphColorsStore.palette);
+      const csv = (table: ReturnType<typeof buildSelectionTable>) => toCsv(table, uiStore.csvDelimiter);
       const copySelection = (format: (table: ReturnType<typeof buildSelectionTable>) => string) => {
         vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(selectionTable()) } });
       };
-      const saveSelection = (format: 'markdown' | 'csv') => {
+      const saveSelection = (format: 'markdown' | 'csv' | 'xlsx') => {
         const table = selectionTable();
         vscode.postMessage({
           type: 'saveSelectionExport',
-          payload: { format, text: format === 'csv' ? toCsv(table) : toMarkdown(table) },
+          payload: format === 'xlsx'
+            // Date is the last column; the extension stores it as a real Excel date.
+            ? { format, table: { ...table, dateColumn: table.headers.length - 1 } }
+            : { format, text: format === 'csv' ? csv(table) : toMarkdown(table) },
         });
       };
-      const exportCount = String(orderedOldestFirst.length);
       multiItems.push({
-        label: t('graph.copySelectionMarkdown', { count: exportCount }),
-        action: () => copySelection(toMarkdown),
+        label: t('graph.copySelection'),
+        action: () => {},
+        children: [
+          { label: t('export.asMarkdown'), action: () => copySelection(toMarkdown) },
+          { label: t('export.asCsv'), action: () => copySelection(csv) },
+        ],
       });
       multiItems.push({
-        label: t('graph.copySelectionCsv', { count: exportCount }),
-        action: () => copySelection(toCsv),
-      });
-      multiItems.push({
-        label: t('graph.exportSelectionMarkdown', { count: exportCount }),
-        action: () => saveSelection('markdown'),
-      });
-      multiItems.push({
-        label: t('graph.exportSelectionCsv', { count: exportCount }),
-        action: () => saveSelection('csv'),
+        label: t('graph.exportSelection'),
+        action: () => {},
+        children: [
+          { label: t('export.asMarkdown'), action: () => saveSelection('markdown') },
+          { label: t('export.asCsv'), action: () => saveSelection('csv') },
+          { label: t('export.asXlsx'), action: () => saveSelection('xlsx') },
+        ],
       });
       multiItems.push({ separator: true, label: '', action: () => {} });
       multiItems.push({
