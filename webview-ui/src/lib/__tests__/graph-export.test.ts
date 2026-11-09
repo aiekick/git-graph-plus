@@ -63,6 +63,13 @@ describe('buildSelectionTable', () => {
     expect(t.rows).toHaveLength(1);
   });
 
+  it('drops a lane that only passes through the selection without any selected commit', () => {
+    // feature's lane runs alongside m1 (f2 above, f1 below) but holds no selected commit.
+    const t = table(history, ['m1']);
+    expect(t.headers.slice(0, -5)).toEqual(['main']);
+    expect(t.rows[0][0]).toBe('●');
+  });
+
   it('falls back to "Lane n" for a lane without a branch and skips the uncommitted row', () => {
     const commits = [
       commit('UNCOMMITTED', ['a']),

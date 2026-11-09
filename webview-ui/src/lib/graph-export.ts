@@ -120,13 +120,12 @@ export function buildSelectionTable(
     return spans[r].min <= y + EPS && spans[r].max > y + EPS;
   };
 
+  // Only lanes carrying at least one selected commit get a column; a lane that
+  // merely passes through the selection would be a column of │ with no commit.
   const used = new Set<number>();
   for (const i of rowIdx) {
     const own = dots[i]?.rail;
     if (own !== undefined) used.add(own);
-    for (let r = 0; r < spans.length; r++) {
-      if (passes(r, i) || (stats && stats[commits[i].hash]?.length && continues(r, i))) used.add(r);
-    }
   }
   // Rails are emitted in lane order and never cross, so the path index is the
   // left-to-right order of the lanes.
