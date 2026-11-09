@@ -1,4 +1,4 @@
-import type { Commit, Ref, SignatureStatus, BranchInfo, TagInfo, RemoteInfo, StashEntry, DiffData, DiffHunk, DiffLine, WorktreeInfo } from './types';
+import type { Commit, Ref, SignatureStatus, BranchInfo, TagInfo, RemoteInfo, StashEntry, DiffData, DiffHunk, DiffLine, WorktreeInfo, FileStat } from './types';
 
 /** Map git's `%G?` signature verification code to our 3-state enum.
  *  `G` = valid signature → good; `N` = no signature → none; everything else
@@ -489,3 +489,29 @@ function unescapeGitPath(p: string): string {
   return result;
 }
 
+
+/**
+ * Parses `git log --numstat --format=%x01%H` output into hash → file stats.
+ * Binary files (`-\t-\tpath`) get null counts; renames keep git's display
+ * path (`dir/{old => new}.ts`).
+ */
+export function parseNumstatLog(raw: string): Map<string, FileStat[]> {
+  const out = new Map<string, FileStat[]>();
+  for (const chunk of raw.split('\x01')) {
+    const lines = chunk.split('\n');
+    const hash = lines[0].trim();
+    if (!hash) continue;
+    const files: FileStat[] = out.get(hash) ?? [];
+    for (const line of lines.slice(1)) {
+      const m = /^(-|\d+)\t(-|\d+)\t(.+)$/.exec(line);
+      if (!m) continue;
+      files.push({
+        path: m[3],
+        additions: m[1] === '-' ? null : Number(m[1]),
+        deletions: m[2] === '-' ? null : Number(m[2]),
+      });
+    }
+    out.set(hash, files);
+  }
+  return out;
+}

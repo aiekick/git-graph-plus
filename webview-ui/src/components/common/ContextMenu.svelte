@@ -24,6 +24,9 @@
   let activeSubmenu = $state<number | null>(null);
   let submenuOnLeft = $state(false);
   let submenuOffsetY = $state(0);
+  // Third level: a submenu entry that itself has children.
+  let activeNested = $state<number | null>(null);
+  let nestedOnLeft = $state(false);
 
   onMount(() => {
     // Hover tooltips out-rank the menu on z-index; keep them hidden while it's
@@ -81,6 +84,7 @@
           class:submenu-active={activeSubmenu === idx}
           onmouseenter={(e) => {
             activeSubmenu = idx;
+            activeNested = null;
             const wrapper = (e.currentTarget as HTMLElement).closest('.submenu-wrapper') as HTMLElement;
             if (wrapper) {
               const rect = wrapper.getBoundingClientRect();
@@ -98,14 +102,53 @@
         </button>
         {#if activeSubmenu === idx}
           <div class="submenu" class:on-left={submenuOnLeft} style="top: calc(-5px + {submenuOffsetY}px);" role="menu" tabindex="-1">
-            {#each item.children as child}
+            {#each item.children as child, cidx}
               {#if child.separator}
                 <div class="separator"></div>
+              {:else if child.children}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="submenu-wrapper" onmouseleave={() => { activeNested = null; }}>
+                  <button
+                    class="menu-item has-children"
+                    class:submenu-active={activeNested === cidx}
+                    onmouseenter={(e) => {
+                      activeNested = cidx;
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      nestedOnLeft = submenuOnLeft || rect.right + 190 > window.innerWidth;
+                    }}
+                    role="menuitem"
+                  >
+                    {#if child.icon}<i class="codicon codicon-{child.icon} menu-icon"></i>{/if}
+                    <span class="menu-label">{child.label}</span>
+                    <i class="codicon codicon-chevron-right submenu-arrow"></i>
+                  </button>
+                  {#if activeNested === cidx}
+                    <div class="submenu" class:on-left={nestedOnLeft} role="menu" tabindex="-1">
+                      {#each child.children as leaf}
+                        {#if leaf.separator}
+                          <div class="separator"></div>
+                        {:else}
+                          <button
+                            class="menu-item"
+                            class:danger={leaf.danger}
+                            disabled={leaf.disabled}
+                            onclick={() => { leaf.action(); onClose(); }}
+                            role="menuitem"
+                          >
+                            {#if leaf.icon}<i class="codicon codicon-{leaf.icon} menu-icon"></i>{/if}
+                            {leaf.label}
+                          </button>
+                        {/if}
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
               {:else}
                 <button
                   class="menu-item"
                   class:danger={child.danger}
                   disabled={child.disabled}
+                  onmouseenter={() => { activeNested = null; }}
                   onclick={() => { child.action(); onClose(); }}
                   role="menuitem"
                 >

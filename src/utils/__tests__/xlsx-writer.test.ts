@@ -83,17 +83,38 @@ describe('buildXlsx', () => {
   it('colors lane cells with their lane color', () => {
     expect(styles).toContain('<fgColor rgb="FF63B0F4"/>');
     expect(styles).toContain('<fgColor rgb="FFFF4D4F"/>');
-    // main: header + commit cell filled (xf 3), passing cell colored font (xf 4)
-    expect(sheet).toContain('<c r="A1" s="3" t="inlineStr">');
-    expect(sheet).toContain('<c r="A2" s="3" t="inlineStr">');
-    expect(sheet).toContain('<c r="A3" s="4" t="inlineStr">');
-    // feature: commit cell filled with its own color (xf 5); empty lane cell omitted
-    expect(sheet).toContain('<c r="B3" s="5" t="inlineStr">');
+    // main: header + commit cell filled (xf 5), passing cell colored font (xf 6)
+    expect(sheet).toContain('<c r="A1" s="5" t="inlineStr">');
+    expect(sheet).toContain('<c r="A2" s="5" t="inlineStr">');
+    expect(sheet).toContain('<c r="A3" s="6" t="inlineStr">');
+    // feature: commit cell filled with its own color (xf 7); empty lane cell omitted
+    expect(sheet).toContain('<c r="B3" s="7" t="inlineStr">');
     expect(sheet).not.toContain('r="B2"');
   });
 
   it('freezes the header and adds an autofilter', () => {
     expect(sheet).toContain('state="frozen"');
     expect(sheet).toContain('<autoFilter ref="A1:G3"/>');
+  });
+
+  it('stores line counts as numbers and shades commit lines in the detailed export', () => {
+    const detailed = unzip(buildXlsx({
+      headers: ['main', 'Tag', 'Description', 'Author', 'SHA', 'Date', 'File', 'Additions', 'Deletions'],
+      rows: [
+        ['●', '', 'Add parser', 'Bob', 'e4f5a6b', '2026-11-07 09:00', '', '12', '3'],
+        ['│', '', '', '', '', '', 'src/parser.ts', '12', '3'],
+        ['│', '', '', '', '', '', 'logo.png', '-', '-'],
+      ],
+      laneColors: ['#63b0f4'],
+      dateColumn: 5,
+      numberColumns: [7, 8],
+      fileRows: [false, true, true],
+    })).get('xl/worksheets/sheet1.xml')!;
+    expect(detailed).toContain('<c r="C2" s="3" t="inlineStr">'); // commit line: bold + shade
+    expect(detailed).toContain('<c r="F2" s="4"><v>');            // commit-line date
+    expect(detailed).toContain('<c r="H2" s="3"><v>12</v></c>');  // total as number
+    expect(detailed).toContain('<c r="H3"><v>12</v></c>');        // file count as number
+    expect(detailed).toContain('<c r="G3" t="inlineStr"><is><t xml:space="preserve">src/parser.ts</t>');
+    expect(detailed).toContain('<c r="H4" t="inlineStr"><is><t xml:space="preserve">-</t>'); // binary
   });
 });

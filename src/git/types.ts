@@ -174,3 +174,10 @@ export interface LogOptions {
    *  commit in the log, which is slow on large repos. */
   includeSignature?: boolean;
 }
+
+/** Per-file line counts of a commit (`git log --numstat`); null for binary files. */
+export interface FileStat {
+  path: string;
+  additions: number | null;
+  deletions: number | null;
+}

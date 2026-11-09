@@ -13,9 +13,9 @@ import { resolveGitDirs } from '../services/file-watcher-helpers';
  *  preventing a pathological --no-pager binary blob from eating the whole
  *  extension host. Callers can override per-invocation via `maxBufferBytes`. */
 const DEFAULT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
-import { parseLog, parseBranches, parseTags, parseRemotes, parseStashList, parseDiff, parseWorktreeList, parseLfsFiles, parseLfsLocks, mapSignatureStatus } from './git-parser';
+import { parseLog, parseBranches, parseTags, parseRemotes, parseStashList, parseDiff, parseWorktreeList, parseLfsFiles, parseLfsLocks, mapSignatureStatus, parseNumstatLog } from './git-parser';
 import { buildReversePatch } from './patch-builder';
-import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature } from './types';
+import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature, FileStat } from './types';
 
 export class GitError extends Error {
   constructor(
@@ -1226,6 +1226,27 @@ export class GitService {
     }
 
     return this.mergeNameStatus(lists);
+  }
+
+  /**
+   * Added/deleted line counts per file for each commit, in one `git log` call
+   * per batch. Merges (and stashes) are compared with their first parent, i.e.
+   * what they brought into the branch; root commits against the empty tree.
+   */
+  async commitFileStats(hashes: string[]): Promise<Record<string, FileStat[]>> {
+    const result: Record<string, FileStat[]> = {};
+    const BATCH = 200;
+    for (let i = 0; i < hashes.length; i += BATCH) {
+      const batch = hashes.slice(i, i + BATCH);
+      for (const h of batch) this.assertSafeRef(h, 'log');
+      const raw = await this.exec([
+        'log', '--no-walk=unsorted', '--numstat', '-m', '--first-parent',
+        '--format=%x01%H', ...batch,
+      ], { silent: true });
+      for (const [hash, files] of parseNumstatLog(raw)) result[hash] = files;
+    }
+    for (const h of hashes) result[h] ??= [];
+    return result;
   }
 
   async showCommitDiff(hash: string, file?: string): Promise<DiffData[]> {

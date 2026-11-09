@@ -40,6 +40,7 @@ import AmendModal from './components/modals/AmendModal.svelte';
   import { graphColorsStore } from './lib/stores/graph-colors.svelte';
   import { commitLinkRulesStore } from './lib/stores/commit-link-rules.svelte';
   import { avatarStore } from './lib/stores/avatars.svelte';
+  import { receiveSelectionFileStats } from './lib/selection-file-stats';
   import SetUpstreamModal from './components/modals/SetUpstreamModal.svelte';
   import FlowInitModal from './components/modals/FlowInitModal.svelte';
   import FlowStartModal from './components/modals/FlowStartModal.svelte';
@@ -120,6 +121,9 @@ import AmendModal from './components/modals/AmendModal.svelte';
           break;
         case 'setGraphColors':
           graphColorsStore.set(msg.payload.colors);
+          break;
+        case 'selectionFileStats':
+          receiveSelectionFileStats(msg.payload.requestId, msg.payload.stats);
           break;
         case 'setCsvDelimiter':
           uiStore.csvDelimiter = msg.payload.delimiter;

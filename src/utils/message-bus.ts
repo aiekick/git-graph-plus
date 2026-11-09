@@ -1,5 +1,5 @@
 import type { XlsxTable } from './xlsx-writer';
-import type { CommitGraphData, BranchData, DiffData, Commit, WorktreeInfo, CommitSignature } from '../git/types';
+import type { CommitGraphData, BranchData, DiffData, Commit, WorktreeInfo, CommitSignature, FileStat } from '../git/types';
 
 export interface LinkRule {
   pattern: string;
@@ -109,6 +109,7 @@ export type WebviewMessage =
   | { type: 'pushAllTags'; payload: { remote?: string } }
   | { type: 'deleteRemoteTag'; payload: { name: string; remote?: string } }
   | { type: 'copyToClipboard'; payload: { text: string } }
+  | { type: 'getSelectionFileStats'; payload: { requestId: string; hashes: string[] } }
   | { type: 'saveSelectionExport'; payload: { format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable } }
   | { type: 'saveCommitPatch'; payload: { hash: string; paths?: string[] } }
   | { type: 'restoreStashFiles'; payload: { index: number; paths: string[] } }
@@ -164,6 +165,7 @@ export type ExtensionMessage =
   | { type: 'setGraphColors'; payload: { colors: string[] } }
   | { type: 'setShowAvatars'; payload: { enabled: boolean } }
   | { type: 'setCsvDelimiter'; payload: { delimiter: string } }
+  | { type: 'selectionFileStats'; payload: { requestId: string; stats: Record<string, FileStat[]> | null; error?: string } }
   | { type: 'setCommitLinkRules'; payload: { rules: LinkRule[] } }
   | { type: 'repoList'; payload: { repos: Array<{ path: string; name: string; type: 'root' | 'submodule' | 'nested' }>; active: string } }
   | { type: 'worktreeData'; payload: WorktreeInfo[] }

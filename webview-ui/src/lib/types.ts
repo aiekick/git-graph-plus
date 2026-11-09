@@ -182,3 +182,10 @@ export interface FlowBranches {
 export type FlowType = 'feature' | 'release' | 'hotfix';
 
 export type InteractiveRebaseMode = 'ui' | 'classic';
+
+/** Per-file line counts of a commit (`git log --numstat`); null for binary files. */
+export interface FileStat {
+  path: string;
+  additions: number | null;
+  deletions: number | null;
+}

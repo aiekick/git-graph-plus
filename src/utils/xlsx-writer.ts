@@ -15,6 +15,11 @@ export interface XlsxTable {
   laneColors: string[];
   /** Index of a column holding `YYYY-MM-DD HH:MM` values to store as dates. */
   dateColumn?: number;
+  /** Columns whose numeric values are stored as numbers. */
+  numberColumns?: number[];
+  /** Detailed export: true for file lines. Commit lines are then shaded and
+   *  bold so each commit stands out above its files. */
+  fileRows?: boolean[];
   sheetName?: string;
 }
 
@@ -159,27 +164,35 @@ export function buildXlsx(table: XlsxTable): Buffer {
       `<font><b/><sz val="11"/><color rgb="${c}"/><name val="Calibri"/></font>`,
     ]),
   ];
-  // fills: 0 none, 1 gray125 (both required), 2 header gray, then one per color
+  // fills: 0 none, 1 gray125 (both required), 2 header gray, 3 commit-line
+  // shade, then one per color
   const fills = [
     '<fill><patternFill patternType="none"/></fill>',
     '<fill><patternFill patternType="gray125"/></fill>',
     '<fill><patternFill patternType="solid"><fgColor rgb="FFE7E6E6"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>',
     ...colors.map(c => `<fill><patternFill patternType="solid"><fgColor rgb="${c}"/><bgColor indexed="64"/></patternFill></fill>`),
   ];
   const center = '<alignment horizontal="center"/>';
-  // cellXfs: 0 default, 1 header, 2 date, then per color: [filled, passing]
+  // cellXfs: 0 default, 1 header, 2 date, 3 commit line, 4 commit-line date,
+  // then per color: [filled, passing]
   const XF_HEADER = 1;
   const XF_DATE = 2;
+  const XF_COMMIT = 3;
+  const XF_COMMIT_DATE = 4;
+  const XF_LANES = 5;
   const xfs = [
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>',
     '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>',
     '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>',
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>',
+    '<xf numFmtId="164" fontId="1" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>',
     ...colors.flatMap((_, i) => [
-      `<xf numFmtId="0" fontId="${2 + 2 * i}" fillId="${3 + i}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1">${center}</xf>`,
+      `<xf numFmtId="0" fontId="${2 + 2 * i}" fillId="${4 + i}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1">${center}</xf>`,
       `<xf numFmtId="0" fontId="${3 + 2 * i}" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1">${center}</xf>`,
     ]),
   ];
-  const xfFilled = (lane: number) => 3 + 2 * colorIndex.get(laneArgb[lane])!;
+  const xfFilled = (lane: number) => XF_LANES + 2 * colorIndex.get(laneArgb[lane])!;
   const xfPassing = (lane: number) => xfFilled(lane) + 1;
 
   const styles = XML_HEAD +
@@ -204,8 +217,13 @@ export function buildXlsx(table: XlsxTable): Buffer {
       .map((h, c) => str(`${columnName(c)}1`, h, c < laneCount ? xfFilled(c) : XF_HEADER))
       .join('')}</row>`,
   );
+  const numberCols = new Set(table.numberColumns ?? []);
+  const detailed = (table.fileRows ?? []).some(Boolean);
   table.rows.forEach((row, i) => {
     const r = i + 2;
+    // In the detailed export, commit lines are shaded/bold above their files.
+    const shaded = detailed && !table.fileRows![i];
+    const text = shaded ? XF_COMMIT : 0;
     const cells = row.map((v, c) => {
       const ref = `${columnName(c)}${r}`;
       if (c < laneCount) {
@@ -215,9 +233,12 @@ export function buildXlsx(table: XlsxTable): Buffer {
       }
       if (c === table.dateColumn) {
         const serial = excelDate(v);
-        if (serial !== null) return `<c r="${ref}" s="${XF_DATE}"><v>${serial}</v></c>`;
+        if (serial !== null) return `<c r="${ref}" s="${shaded ? XF_COMMIT_DATE : XF_DATE}"><v>${serial}</v></c>`;
       }
-      return str(ref, v, 0);
+      if (numberCols.has(c) && /^\d+$/.test(v)) {
+        return `<c r="${ref}"${text ? ` s="${text}"` : ''}><v>${v}</v></c>`;
+      }
+      return str(ref, v, text);
     });
     sheetRows.push(`<row r="${r}">${cells.join('')}</row>`);
   });

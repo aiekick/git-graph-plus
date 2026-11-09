@@ -258,4 +258,32 @@ describe('ContextMenu', () => {
     expect(childAction).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('opens a third-level submenu and runs its leaf action', async () => {
+    const leafAction = vi.fn();
+    const onClose = vi.fn();
+    const { container } = render(ContextMenu, {
+      x: 0, y: 0,
+      onClose,
+      items: [
+        {
+          label: 'Export',
+          action: vi.fn(),
+          children: [
+            { label: 'Simple', action: vi.fn(), children: [{ label: 'as CSV', action: leafAction }] },
+            { label: 'Plain', action: vi.fn() },
+          ],
+        },
+      ],
+    });
+    await fireEvent.mouseEnter(container.querySelector<HTMLButtonElement>('button.has-children')!);
+    const nestedParent = container.querySelector<HTMLButtonElement>('.submenu button.has-children')!;
+    expect(container.querySelector('.submenu .submenu')).toBeNull();
+    await fireEvent.mouseEnter(nestedParent);
+    const leaf = container.querySelector<HTMLButtonElement>('.submenu .submenu .menu-item')!;
+    expect(leaf.textContent?.trim()).toBe('as CSV');
+    await fireEvent.click(leaf);
+    expect(leafAction).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

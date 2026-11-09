@@ -1280,6 +1280,19 @@ export class MainPanel {
           }
           break;
         }
+        case 'getSelectionFileStats': {
+          const { requestId, hashes } = message.payload;
+          try {
+            const stats = await this.gitService.commitFileStats(hashes);
+            this.post({ type: 'selectionFileStats', payload: { requestId, stats } });
+          } catch (err) {
+            // Always answer so the webview's pending export doesn't hang.
+            const error = err instanceof Error ? err.message : String(err);
+            this.post({ type: 'selectionFileStats', payload: { requestId, stats: null, error } });
+            vscode.window.showErrorMessage(error);
+          }
+          break;
+        }
         case 'saveSelectionExport': {
           // VS Code's own save dialog: on a remote window it opens on the remote
           // file system and offers "Show Local" to save on this machine instead.

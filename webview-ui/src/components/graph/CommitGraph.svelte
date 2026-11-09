@@ -27,6 +27,7 @@
   import { tooltip } from '../../lib/actions/tooltip';
   import { getSquashChain } from '../../lib/utils/squash';
   import { buildSelectionTable, toCsv, toMarkdown } from '../../lib/graph-export';
+  import { requestSelectionFileStats } from '../../lib/selection-file-stats';
   import { chainBranches } from '../../lib/utils/branchChain';
   import RebaseTargetModal from '../modals/RebaseTargetModal.svelte';
   import DirtyActionModal from '../modals/DirtyActionModal.svelte';
@@ -831,45 +832,70 @@
         action: () => { multiCherryPickTargets = orderedOldestFirst; },
       });
       multiItems.push({ separator: true, label: '', action: () => {} });
-      // Export the selected rows (lanes + tag/description/author/SHA/date) to the clipboard or a file.
-      const selectionTable = () =>
-        buildSelectionTable(displayCommits, displayPaths, displayDots, sel, {
+      // Export the selected rows (lanes + tag/description/author/SHA/date, plus
+      // one line per changed file for the detailed variant) to the clipboard or a file.
+      // Capture the graph now: a refresh during the file-stats round trip
+      // replaces these arrays.
+      const exportCommits = displayCommits;
+      const exportPaths = displayPaths;
+      const exportDots = displayDots;
+      const exportHashes = [...orderedOldestFirst];
+      type Table = ReturnType<typeof buildSelectionTable>;
+      const selectionTable = async (withFiles: boolean): Promise<Table | null> => {
+        const fileStats = withFiles ? await requestSelectionFileStats(exportHashes) : undefined;
+        if (fileStats === null) return null; // the extension already showed the error
+        return buildSelectionTable(exportCommits, exportPaths, exportDots, exportHashes, {
           lane: t('export.lane'),
           tag: t('export.tag'),
           description: t('export.description'),
           author: t('details.author'),
           sha: t('export.sha'),
           date: t('details.date'),
-        }, graphColorsStore.palette);
-      const csv = (table: ReturnType<typeof buildSelectionTable>) => toCsv(table, uiStore.csvDelimiter);
-      const copySelection = (format: (table: ReturnType<typeof buildSelectionTable>) => string) => {
-        vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(selectionTable()) } });
+          file: t('export.file'),
+          additions: t('export.additions'),
+          deletions: t('export.deletions'),
+        }, { palette: [...graphColorsStore.palette], fileStats });
       };
-      const saveSelection = (format: 'markdown' | 'csv' | 'xlsx') => {
-        const table = selectionTable();
+      const csv = (table: Table) => toCsv(table, uiStore.csvDelimiter);
+      const copySelection = async (withFiles: boolean, format: (table: Table) => string) => {
+        const table = await selectionTable(withFiles);
+        if (table) vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(table) } });
+      };
+      const saveSelection = async (withFiles: boolean, format: 'markdown' | 'csv' | 'xlsx') => {
+        const table = await selectionTable(withFiles);
+        if (!table) return;
         vscode.postMessage({
           type: 'saveSelectionExport',
           payload: format === 'xlsx'
-            // Date is the last column; the extension stores it as a real Excel date.
-            ? { format, table: { ...table, dateColumn: table.headers.length - 1 } }
+            // Date follows the lanes and tag/description/author/SHA; the
+            // extension stores it as a real Excel date.
+            ? { format, table: { ...table, dateColumn: table.laneColors.length + 4 } }
             : { format, text: format === 'csv' ? csv(table) : toMarkdown(table) },
         });
       };
+      const copyItems = (withFiles: boolean) => [
+        { label: t('export.asMarkdown'), action: () => void copySelection(withFiles, toMarkdown) },
+        { label: t('export.asCsv'), action: () => void copySelection(withFiles, csv) },
+      ];
+      const saveItems = (withFiles: boolean) => [
+        { label: t('export.asMarkdown'), action: () => void saveSelection(withFiles, 'markdown') },
+        { label: t('export.asCsv'), action: () => void saveSelection(withFiles, 'csv') },
+        { label: t('export.asXlsx'), action: () => void saveSelection(withFiles, 'xlsx') },
+      ];
       multiItems.push({
         label: t('graph.copySelection'),
         action: () => {},
         children: [
-          { label: t('export.asMarkdown'), action: () => copySelection(toMarkdown) },
-          { label: t('export.asCsv'), action: () => copySelection(csv) },
+          { label: t('export.simple'), action: () => {}, children: copyItems(false) },
+          { label: t('export.withFiles'), action: () => {}, children: copyItems(true) },
         ],
       });
       multiItems.push({
         label: t('graph.exportSelection'),
         action: () => {},
         children: [
-          { label: t('export.asMarkdown'), action: () => saveSelection('markdown') },
-          { label: t('export.asCsv'), action: () => saveSelection('csv') },
-          { label: t('export.asXlsx'), action: () => saveSelection('xlsx') },
+          { label: t('export.simple'), action: () => {}, children: saveItems(false) },
+          { label: t('export.withFiles'), action: () => {}, children: saveItems(true) },
         ],
       });
       multiItems.push({ separator: true, label: '', action: () => {} });

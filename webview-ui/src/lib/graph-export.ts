@@ -1,4 +1,4 @@
-import type { Commit, GraphDotData, GraphPathData } from './types';
+import type { Commit, FileStat, GraphDotData, GraphPathData } from './types';
 import { DEFAULT_GRAPH_COLORS, resolveGraphColor } from './utils/graph-color';
 
 /** Cell drawn where the commit sits on a lane. */
@@ -11,6 +11,10 @@ export interface ExportTable {
   rows: string[][];
   /** Graph color of each lane column (the first `laneColors.length` columns). */
   laneColors: string[];
+  /** Per row: true for a file line of the detailed export (false for a commit). */
+  fileRows: boolean[];
+  /** Columns holding numbers (line counts), empty for the simple export. */
+  numberColumns: number[];
 }
 
 export interface ExportLabels {
@@ -21,6 +25,17 @@ export interface ExportLabels {
   author: string;
   sha: string;
   date: string;
+  /** Detailed export only. */
+  file?: string;
+  additions?: string;
+  deletions?: string;
+}
+
+export interface ExportOptions {
+  palette?: string[];
+  /** Detailed export: hash → files; adds File / Additions / Deletions columns
+   *  and one line per file under its commit. */
+  fileStats?: Record<string, FileStat[]>;
 }
 
 /** Row `i` of the graph is centred at y = i + 0.5 (see buildFullGraph). */
@@ -70,6 +85,10 @@ function formatDate(iso: string): string {
  * touching the selection, then tags, description, author, SHA and date.
  * Rows keep the graph order (newest first); the uncommitted-changes row is
  * skipped. `commits`, `dots` are index-aligned with the graph rows.
+ *
+ * With `fileStats`, File / Additions / Deletions columns are added: the commit
+ * line holds the totals and each changed file gets its own line below it, with
+ * the lanes continuing downwards drawn as `│`.
  */
 export function buildSelectionTable(
   commits: Commit[],
@@ -77,8 +96,10 @@ export function buildSelectionTable(
   dots: GraphDotData[],
   selected: Iterable<string>,
   labels: ExportLabels,
-  palette: string[] = DEFAULT_GRAPH_COLORS,
+  options: ExportOptions = {},
 ): ExportTable {
+  const palette = options.palette ?? DEFAULT_GRAPH_COLORS;
+  const stats = options.fileStats;
   const sel = new Set(selected);
   const rowIdx: number[] = [];
   for (let i = 0; i < commits.length; i++) {
@@ -93,12 +114,19 @@ export function buildSelectionTable(
     const y = rowCenter(i);
     return spans[r].min < y - EPS && y <= spans[r].max + EPS;
   };
+  // Rail r carries on below row i (towards the commit's parents).
+  const continues = (r: number, i: number) => {
+    const y = rowCenter(i);
+    return spans[r].min <= y + EPS && spans[r].max > y + EPS;
+  };
 
   const used = new Set<number>();
   for (const i of rowIdx) {
     const own = dots[i]?.rail;
     if (own !== undefined) used.add(own);
-    for (let r = 0; r < spans.length; r++) if (passes(r, i)) used.add(r);
+    for (let r = 0; r < spans.length; r++) {
+      if (passes(r, i) || (stats && stats[commits[i].hash]?.length && continues(r, i))) used.add(r);
+    }
   }
   // Rails are emitted in lane order and never cross, so the path index is the
   // left-to-right order of the lanes.
@@ -108,19 +136,39 @@ export function buildSelectionTable(
   const headers = [
     ...rails.map((r, k) => names.get(r) ?? labels.lane.replace('{n}', String(k + 1))),
     labels.tag, labels.description, labels.author, labels.sha, labels.date,
+    ...(stats ? [labels.file ?? 'File', labels.additions ?? 'Additions', labels.deletions ?? 'Deletions'] : []),
   ];
+  const fixed = rails.length + 5; // lanes + tag/description/author/sha/date
+  const count = (n: number | null) => (n === null ? '-' : String(n));
 
-  const rows = rowIdx.map(i => {
+  const rows: string[][] = [];
+  const fileRows: boolean[] = [];
+  for (const i of rowIdx) {
     const c = commits[i];
     const own = dots[i]?.rail;
     // A lone parentless commit (no rail at all) gets no lane mark.
     const lanes = rails.map(r => (r === own ? COMMIT_MARK : passes(r, i) ? PASS_MARK : ''));
     const tags = c.refs.filter(r => r.type === 'tag').map(r => r.name).join(', ');
-    return [...lanes, tags, c.subject, c.author.name, c.abbreviatedHash, formatDate(c.author.date)];
-  });
+    const row = [...lanes, tags, c.subject, c.author.name, c.abbreviatedHash, formatDate(c.author.date)];
+    if (!stats) {
+      rows.push(row);
+      fileRows.push(false);
+      continue;
+    }
+    const files = stats[c.hash] ?? [];
+    const sum = (k: 'additions' | 'deletions') => files.reduce((n, f) => n + (f[k] ?? 0), 0);
+    rows.push([...row, '', String(sum('additions')), String(sum('deletions'))]);
+    fileRows.push(false);
+    const below = rails.map(r => (continues(r, i) ? PASS_MARK : ''));
+    for (const f of files) {
+      rows.push([...below, '', '', '', '', '', f.path, count(f.additions), count(f.deletions)]);
+      fileRows.push(true);
+    }
+  }
 
   const laneColors = rails.map(r => resolveGraphColor(palette, paths[r].color, paths[r].colorOverride));
-  return { headers, rows, laneColors };
+  const numberColumns = stats ? [fixed + 1, fixed + 2] : [];
+  return { headers, rows, laneColors, fileRows, numberColumns };
 }
 
 /** Quotes a field when it contains the delimiter, a quote or a line break. */
