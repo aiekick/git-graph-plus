@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, readFile } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { bufferStream, BufferOverflowError } from '../utils/buffer-stream';
@@ -15,6 +15,7 @@ import { resolveGitDirs } from '../services/file-watcher-helpers';
 const DEFAULT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 import { parseLog, parseBranches, parseTags, parseRemotes, parseStashList, parseDiff, parseWorktreeList, parseLfsFiles, parseLfsLocks, mapSignatureStatus, parseNumstatLog } from './git-parser';
 import { buildReversePatch } from './patch-builder';
+import { mapOldLineToNew } from './line-map';
 import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature, FileStat } from './types';
 
 export class GitError extends Error {
@@ -2414,6 +2415,39 @@ export class GitService {
       // hide the others.
       throw new AggregateError(errors, `Failed to delete tag from ${errors.length} remotes`);
     }
+  }
+
+  // --- Text file at a revision (diff context / open at revision) ---
+
+  /**
+   * Text content of `filePath` at `ref`: a commit-ish, `'index'` (the staged
+   * version) or `'working'` (the file on disk).
+   */
+  async readFileAtRef(ref: string, filePath: string): Promise<string> {
+    this.assertSafePath(filePath, 'show');
+    if (ref === 'working') {
+      return readFile(join(this.repoPath, filePath), 'utf8');
+    }
+    if (ref === 'index') {
+      return this.exec(['show', `:${filePath}`], { silent: true });
+    }
+    this.assertSafeRef(ref, 'show');
+    return this.exec(['show', `${ref}:${filePath}`], { silent: true });
+  }
+
+  /**
+   * Line of the working-tree file matching `line` of `filePath` at `ref`
+   * (commit-ish or `'index'`), following the changes made since. Lines that
+   * were edited since map to the start of what replaced them.
+   */
+  async mapLineToWorkingTree(ref: string, filePath: string, line: number): Promise<number> {
+    this.assertSafePath(filePath, 'diff');
+    if (ref === 'working') return line;
+    const args = ref === 'index'
+      ? ['diff', '--no-color', '--no-ext-diff', '-U0', '--', filePath]
+      : (this.assertSafeRef(ref, 'diff'), ['diff', '--no-color', '--no-ext-diff', '-U0', ref, '--', filePath]);
+    const diffs = parseDiff(await this.exec(args, { silent: true }));
+    return mapOldLineToNew(diffs[0]?.hunks ?? [], line);
   }
 
   // --- Image at ref (binary-safe) ---

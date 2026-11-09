@@ -44,6 +44,7 @@ A modern, full-featured Git GUI for VS Code. Visualize your commit history, mana
 | **Commit Ordering**     | Topological ordering like Fork for clear branch history                                                               |
 | **Three Views**         | **Graph** for visual history, **Reflog** for git reference log history, **Statistics** for analytics                  |
 | **Commit Details**      | Click any commit to view metadata, changed files, and full diffs in a resizable bottom panel                          |
+| **Diff Context & Open** | Expand the hidden lines around each hunk, and double-click a line to open that version of the file at that line (or the current file at the matching place) |
 | **Markdown Messages**   | Commit messages containing Markdown render formatted in the details panel, with a Markdown/Plain toggle               |
 | **Commit Links**        | Issue, PR, and merge-request references in commit messages become clickable links - GitHub/GitLab auto-detected from `origin`, plus custom regex rules |
 | **Commit Comparison**   | Select a base commit, then click another to compare - select multiple commits to toggle a combined changes panel, or compare any commit to your working tree |

@@ -4,6 +4,9 @@
   import { t } from '../../lib/i18n/index.svelte';
   import { detectLanguage, highlightLineSync, getHighlighter, ensureLanguage, activeShikiTheme, escapeHtml } from '../../lib/utils/highlighter';
   import ImageDiff from '../common/ImageDiff.svelte';
+  import { computeGaps, revealedLines, type DiffGap } from '../../lib/diff-gaps';
+  import { requestFileLines } from '../../lib/file-lines';
+  import { getVsCodeApi } from '../../lib/vscode-api';
 
   // Right-click target on a diff line. The parent owns the context menu (it
   // already hosts one for the file tree), so we just hand it the location plus
@@ -48,9 +51,14 @@
     // When provided (committed view only), the "Reverse Selected Lines" button
     // reverses just the dragged changed lines of a hunk immediately.
     onReverseLines?: (target: { commitHash: string; file: string; hunkIndex: number; lineIndices: number[] }) => void;
+    // The two revisions this diff compares: a commit-ish, 'index' (staged
+    // version) or 'working' (file on disk); oldRef is null when there is no old
+    // side (root commit). Enables expanding the hidden context and opening the
+    // file in an editor at a line.
+    refs?: { oldRef: string | null; newRef: string };
   }
 
-  let { diff, commitHash, staged = false, stacked = false, heading, onReverse, onReverseHunk, onReverseLines }: Props = $props();
+  let { diff, commitHash, staged = false, stacked = false, heading, onReverse, onReverseHunk, onReverseLines, refs }: Props = $props();
 
   // Whether this diff supports reversing (committed view). Drives both the
   // right-click menu and the per-hunk header reverse affordance. Whole-file
@@ -227,6 +235,8 @@
     diff;
     showFullDiff = false;
     lineSel = null;
+    fileLines = null;
+    expanded = {};
   });
 
   let diffMode = $state<'inline' | 'side-by-side'>('inline');
@@ -341,7 +351,160 @@
     const key = `${hunkStart}-${lineIdx}`;
     return highlightedLines.get(key) ?? escapeHtml(content);
   }
+
+  // ── Hidden context (unchanged lines between/around hunks) ──
+  // The new side of the file is fetched once per diff; gaps between hunks are
+  // then revealed EXPAND_STEP lines at a time from either end, or entirely.
+  const EXPAND_STEP = 20;
+  let fileLines = $state<string[] | null>(null);
+  let expanded = $state<Record<number, { top: number; bottom: number }>>({});
+  const canExpand = $derived(!!refs && !diff.isBinary && !diffTruncated && diff.hunks.length > 0);
+
+  $effect(() => {
+    if (!canExpand || !refs) return;
+    const target = diff;
+    requestFileLines(refs.newRef, target.file)
+      .then(lines => { if (diff === target) fileLines = lines; })
+      .catch(() => {});
+  });
+
+  const gapByIndex = $derived.by(() => {
+    const m = new Map<number, DiffGap>();
+    if (!canExpand || !fileLines) return m;
+    for (const g of computeGaps(diff.hunks, fileLines.length)) m.set(g.index, g);
+    return m;
+  });
+
+  function gapView(gap: DiffGap) {
+    const e = expanded[gap.index];
+    return revealedLines(gap, e?.top ?? 0, e?.bottom ?? 0);
+  }
+
+  function expandGap(gap: DiffGap, dir: 'top' | 'bottom' | 'all') {
+    const e = expanded[gap.index] ?? { top: 0, bottom: 0 };
+    const size = gap.newTo - gap.newFrom + 1;
+    const next = dir === 'all' ? { top: size, bottom: 0 }
+      : dir === 'top' ? { ...e, top: e.top + EXPAND_STEP }
+      : { ...e, bottom: e.bottom + EXPAND_STEP };
+    expanded = { ...expanded, [gap.index]: next };
+  }
+
+  // Syntax highlighting of the revealed lines (whole new-side file, by line).
+  let contextHighlighted = $state<Map<number, string>>(new Map());
+  $effect(() => {
+    const lines = fileLines;
+    const lang = detectLanguage(diff.file);
+    const theme = shikiTheme;
+    if (!lines || !lang || lines.length > MAX_HIGHLIGHT_LINES) { contextHighlighted = new Map(); return; }
+    let cancelled = false;
+    getHighlighter()
+      .then(async h => {
+        if (cancelled || !(await ensureLanguage(h, lang))) return;
+        const m = new Map<number, string>();
+        for (let i = 0; i < lines.length; i++) {
+          m.set(i + 1, highlightLineSync(h, lines[i], lang, theme));
+          if (i % 250 === 249) {
+            await new Promise<void>(resolve => queueMicrotask(resolve));
+            if (cancelled) return;
+          }
+        }
+        if (!cancelled) contextHighlighted = m;
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  });
+
+  function contextHtml(newLine: number): string {
+    return contextHighlighted.get(newLine) ?? escapeHtml(fileLines?.[newLine - 1] ?? '');
+  }
+
+  // ── Open the file in an editor at a line ──
+  const vscodeApi = getVsCodeApi();
+
+  /** Opens the diff's old or new revision of the file, cursor on `line`. */
+  function openAt(side: 'old' | 'new', line: number | undefined) {
+    const ref = side === 'new' ? refs?.newRef : refs?.oldRef;
+    if (!ref || !line) return;
+    vscodeApi.postMessage({ type: 'openFileAtRef', payload: { ref, path: diff.file, line } });
+  }
+
+  /** Opens the side a diff line belongs to: deleted lines live on the old side. */
+  function openLine(line: DiffData['hunks'][number]['lines'][number]) {
+    if (line.type === 'delete') openAt('old', line.oldLineNumber);
+    else openAt('new', line.newLineNumber);
+  }
+
+  function openHunk(hunk: DiffData['hunks'][number]) {
+    if (hunk.newLines > 0) openAt('new', hunk.newStart);
+    else openAt('old', hunk.oldStart);
+  }
+
+  /** First changed line of the diff, to land on when opening the whole file. */
+  function firstChangedNewLine(): number {
+    for (const h of diff.hunks) {
+      // A deleted line has no new-side number: it sits right after the last
+      // new-side line seen before it.
+      let lastNew = h.newLines === 0 ? h.newStart : h.newStart - 1;
+      for (const l of h.lines) {
+        if (l.type === 'add') return l.newLineNumber ?? lastNew + 1;
+        if (l.type === 'delete') return Math.max(1, lastNew + 1);
+        if (l.newLineNumber) lastNew = l.newLineNumber;
+      }
+    }
+    return 1;
+  }
+
+  /** Opens the current working-tree file at the line matching this revision. */
+  function openWorkingFile() {
+    if (!refs) return;
+    vscodeApi.postMessage({
+      type: 'openWorkingFileAtLine',
+      payload: { ref: refs.newRef, path: diff.file, line: firstChangedNewLine() },
+    });
+  }
 </script>
+
+{#snippet contextLine(gap: DiffGap, n: number, side: 'both' | 'old' | 'new')}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="diff-line diff-context diff-revealed" ondblclick={() => openAt('new', n)}>
+    {#if side === 'both'}
+      <span class="line-gutter revealed-gutter">
+        <span class="line-num old">{n - gap.oldOffset}</span>
+        <span class="line-num new">{n}</span>
+        <span class="line-prefix"> </span>
+      </span>
+    {:else}
+      <span class="line-num">{side === 'old' ? n - gap.oldOffset : n}</span>
+    {/if}
+    <span class="line-content">{@html contextHtml(n)}</span>
+  </div>
+{/snippet}
+
+{#snippet gapBlock(gap: DiffGap, side: 'both' | 'old' | 'new')}
+  {@const v = gapView(gap)}
+  {#each v.top as n (n)}{@render contextLine(gap, n, side)}{/each}
+  {#if v.hidden > 0}
+    <div class="diff-gap-bar">
+      <span class="gap-actions">
+        {#if gap.index > 0}
+          <button onclick={() => expandGap(gap, 'top')} title={t('details.expandDown', { count: EXPAND_STEP })} aria-label={t('details.expandDown', { count: EXPAND_STEP })}>
+            <i class="codicon codicon-fold-down"></i>
+          </button>
+        {/if}
+        {#if gap.index < diff.hunks.length}
+          <button onclick={() => expandGap(gap, 'bottom')} title={t('details.expandUp', { count: EXPAND_STEP })} aria-label={t('details.expandUp', { count: EXPAND_STEP })}>
+            <i class="codicon codicon-fold-up"></i>
+          </button>
+        {/if}
+        <button onclick={() => expandGap(gap, 'all')} title={t('details.expandAll')} aria-label={t('details.expandAll')}>
+          <i class="codicon codicon-unfold"></i>
+        </button>
+      </span>
+      <span class="gap-label">{t('details.hiddenLines', { count: v.hidden })}</span>
+    </div>
+  {/if}
+  {#each v.bottom as n (n)}{@render contextLine(gap, n, side)}{/each}
+{/snippet}
 
 <div class="diff-wrapper" class:stacked>
   <div class="diff-toolbar">
@@ -353,6 +516,18 @@
         {/if}
         <span class="diff-base">{getFileName(diff.file)}</span>
       </span>
+      {#if refs && !diff.isBinary}
+        <div class="diff-open-actions">
+          <button onclick={() => openAt('new', firstChangedNewLine())} title={t('details.openRevision')} aria-label={t('details.openRevision')}>
+            <i class="codicon codicon-file-code"></i>
+          </button>
+          {#if refs.newRef !== 'working'}
+            <button onclick={openWorkingFile} title={t('details.openWorkingFile')} aria-label={t('details.openWorkingFile')}>
+              <i class="codicon codicon-go-to-file"></i>
+            </button>
+          {/if}
+        </div>
+      {/if}
       <div class="diff-mode-toggle">
         <button
           class:active={diffMode === 'inline'}
@@ -386,10 +561,18 @@
     {:else if diffMode === 'inline'}
       <div class="diff-content">
         {#each renderHunks as hunk, hunkIdx}
+          {#if gapByIndex.get(hunkIdx)}{@render gapBlock(gapByIndex.get(hunkIdx)!, 'both')}{/if}
           <div class="diff-hunk" class:reversible={canReverse && isHunkComplete(hunkIdx)} class:has-selection={lineSel?.hunkIdx === hunkIdx && selectedChangedIndices.length > 0}>
             <div class="diff-hunk-header">
               <div class="hunk-header-inner">
                 <span class="diff-hunk-range" title={hunkLabel(hunk, hunkIdx)}>{hunkLabel(hunk, hunkIdx)}</span>
+                {#if refs}
+                  <button class="hunk-open-btn" onclick={() => openHunk(hunk)}
+                          aria-label={t('details.openHunk')} title={t('details.openHunk')}>
+                    <i class="codicon codicon-go-to-file"></i>
+                    <span>{t('details.openHunk')}</span>
+                  </button>
+                {/if}
                 {#if canReverse && isHunkComplete(hunkIdx)}
                   {#if lineSel?.hunkIdx === hunkIdx && selectedChangedIndices.length > 0}
                     <button class="hunk-action-btn hunk-lines-btn" onclick={reverseSelectedLines}
@@ -408,7 +591,7 @@
             </div>
             {#each hunk.lines as line, lineIndex}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="diff-line diff-{line.type}" class:line-selected={lineSel?.hunkIdx === hunkIdx && lineSel.indices.has(lineIndex)} oncontextmenu={(e) => handleLineContextMenu(e, hunkIdx, lineIndex)}>
+              <div class="diff-line diff-{line.type}" class:line-selected={lineSel?.hunkIdx === hunkIdx && lineSel.indices.has(lineIndex)} oncontextmenu={(e) => handleLineContextMenu(e, hunkIdx, lineIndex)} ondblclick={() => openLine(line)}>
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <span
                   class="line-gutter"
@@ -425,6 +608,7 @@
             {/each}
           </div>
         {/each}
+        {#if gapByIndex.get(diff.hunks.length)}{@render gapBlock(gapByIndex.get(diff.hunks.length)!, 'both')}{/if}
       </div>
     {:else}
       <!-- SBS keeps right-click → Reverse Hunk parity via the per-hunk wrapper
@@ -435,7 +619,7 @@
         <div class="sbs-pane sbs-left" bind:this={sbsLeftEl} onscroll={handleSbsScroll}>
           <div class="sbs-inner">
             {#each renderHunks as hunk, hunkIdx}
-              {#if hunkIdx > 0}<div class="hunk-separator" aria-hidden="true"></div>{/if}
+              {#if gapByIndex.get(hunkIdx)}{@render gapBlock(gapByIndex.get(hunkIdx)!, 'old')}{:else if hunkIdx > 0}<div class="hunk-separator" aria-hidden="true"></div>{/if}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 class="sbs-hunk"
@@ -446,7 +630,8 @@
               >
                 {#each hunk.lines as line, lineIndex}
                   {#if line.type === 'context' || line.type === 'delete'}
-                    <div class="diff-line diff-{line.type}">
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div class="diff-line diff-{line.type}" ondblclick={() => openAt('old', line.oldLineNumber)}>
                       <span class="line-num">{line.oldLineNumber ?? ''}</span>
                       <span class="line-content">{@html getHighlighted(hunk.oldStart, lineIndex, line.content)}</span>
                     </div>
@@ -459,12 +644,13 @@
                 {/each}
               </div>
             {/each}
+            {#if gapByIndex.get(diff.hunks.length)}{@render gapBlock(gapByIndex.get(diff.hunks.length)!, 'old')}{/if}
           </div>
         </div>
         <div class="sbs-pane sbs-right" bind:this={sbsRightEl} onscroll={handleSbsScroll}>
           <div class="sbs-inner">
             {#each renderHunks as hunk, hunkIdx}
-              {#if hunkIdx > 0}<div class="hunk-separator" aria-hidden="true"></div>{/if}
+              {#if gapByIndex.get(hunkIdx)}{@render gapBlock(gapByIndex.get(hunkIdx)!, 'new')}{:else if hunkIdx > 0}<div class="hunk-separator" aria-hidden="true"></div>{/if}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 class="sbs-hunk"
@@ -475,7 +661,8 @@
               >
                 {#each hunk.lines as line, lineIndex}
                   {#if line.type === 'context' || line.type === 'add'}
-                    <div class="diff-line diff-{line.type}">
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div class="diff-line diff-{line.type}" ondblclick={() => openAt('new', line.newLineNumber)}>
                       <span class="line-num">{line.newLineNumber ?? ''}</span>
                       <span class="line-content">{@html getHighlighted(hunk.oldStart, lineIndex, line.content)}</span>
                     </div>
@@ -488,6 +675,7 @@
                 {/each}
               </div>
             {/each}
+            {#if gapByIndex.get(diff.hunks.length)}{@render gapBlock(gapByIndex.get(diff.hunks.length)!, 'new')}{/if}
           </div>
         </div>
       </div>
@@ -669,6 +857,94 @@
   .sbs-hunk.hunk-hover {
     outline: 1px solid var(--vscode-focusBorder, rgba(120, 120, 255, 0.4));
     outline-offset: -1px;
+  }
+
+  /* "Open in file" sits next to the hunk label, shown on hover like Reverse Hunk. */
+  .hunk-open-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 1px 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95em;
+    color: var(--vscode-textLink-foreground, #3794ff);
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .diff-hunk:hover .hunk-open-btn,
+  .hunk-open-btn:focus {
+    opacity: 1;
+  }
+  .hunk-open-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+  }
+
+  .diff-open-actions {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+    margin-right: 6px;
+  }
+  .diff-open-actions button {
+    display: flex;
+    align-items: center;
+    padding: 2px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .diff-open-actions button:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+    color: var(--text-primary);
+  }
+
+  /* Hidden unchanged lines between hunks: a bar with expand controls. */
+  .diff-gap-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 22px;
+    padding: 0 8px;
+    background: var(--vscode-diffEditor-unchangedRegionBackground, rgba(128, 128, 128, 0.1));
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    user-select: none;
+  }
+  .gap-actions {
+    display: flex;
+    gap: 2px;
+    position: sticky;
+    left: 0;
+  }
+  .gap-actions button {
+    display: flex;
+    align-items: center;
+    padding: 1px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    color: inherit;
+  }
+  .gap-actions button:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    color: var(--text-primary);
+  }
+  .gap-label {
+    white-space: nowrap;
+  }
+  /* Revealed context lines are plain context, a touch dimmer than the hunk's own. */
+  .diff-revealed .line-content {
+    opacity: 0.85;
+  }
+  .revealed-gutter {
+    cursor: default;
   }
 
   /* SBS mode still uses a plain dashed separator between hunks (no header bar). */

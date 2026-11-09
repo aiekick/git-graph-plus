@@ -41,6 +41,7 @@ import AmendModal from './components/modals/AmendModal.svelte';
   import { commitLinkRulesStore } from './lib/stores/commit-link-rules.svelte';
   import { avatarStore } from './lib/stores/avatars.svelte';
   import { receiveSelectionFileStats } from './lib/selection-file-stats';
+  import { receiveFileLines } from './lib/file-lines';
   import SetUpstreamModal from './components/modals/SetUpstreamModal.svelte';
   import FlowInitModal from './components/modals/FlowInitModal.svelte';
   import FlowStartModal from './components/modals/FlowStartModal.svelte';
@@ -121,6 +122,9 @@ import AmendModal from './components/modals/AmendModal.svelte';
           break;
         case 'setGraphColors':
           graphColorsStore.set(msg.payload.colors);
+          break;
+        case 'fileLines':
+          receiveFileLines(msg.payload.requestId, msg.payload.lines);
           break;
         case 'selectionFileStats':
           receiveSelectionFileStats(msg.payload.requestId, msg.payload.stats);

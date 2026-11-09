@@ -6,6 +6,7 @@ import { formatGitError, isAuthFailure, transportFromRemoteUrl } from '../git/gi
 import { splitUpstreamRef } from '../git/git-parser';
 import { samePath } from '../utils/path';
 import { buildXlsx } from '../utils/xlsx-writer';
+import { revisionUri } from '../services/revision-content-provider';
 import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars, readCsvDelimiter } from '../utils/config';
 import { buildClassicRebaseCommand } from '../git/classic-rebase';
 import { buildFullGraph } from '../git/git-graph-builder';
@@ -179,6 +180,13 @@ export class MainPanel {
       }
     }
     return resolveCommitLinkRules(custom, autoDetect, remoteUrl);
+  }
+
+  /** Opens `uri` in an editor with the cursor on (1-based) `line`, centered. */
+  private async showAtLine(uri: vscode.Uri, line: number): Promise<void> {
+    const pos = new vscode.Position(Math.max(0, line - 1), 0);
+    const editor = await vscode.window.showTextDocument(uri, { preview: false, selection: new vscode.Range(pos, pos) });
+    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
   }
 
   private async postCommitLinkRules(): Promise<void> {
@@ -1278,6 +1286,39 @@ export class MainPanel {
           if (uri) {
             await vscode.workspace.fs.writeFile(uri, Buffer.from(patch));
           }
+          break;
+        }
+        case 'getFileLines': {
+          const { requestId, ref, path: filePath } = message.payload;
+          let lines: string[] | null = null;
+          try {
+            lines = (await this.gitService.readFileAtRef(ref, filePath)).split(/\r?\n/);
+            // A trailing newline yields one empty extra element; drop it.
+            if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+          } catch {
+            lines = null; // file missing at that revision → no context to expand
+          }
+          this.post({ type: 'fileLines', payload: { requestId, lines } });
+          break;
+        }
+        case 'openFileAtRef': {
+          const { ref, path: filePath, line } = message.payload;
+          const uri = ref === 'working'
+            ? vscode.Uri.file(this.resolveRepoRelativePath(filePath, 'openFileAtRef'))
+            : revisionUri(this.repoPath, ref, filePath);
+          await this.showAtLine(uri, line);
+          break;
+        }
+        case 'openWorkingFileAtLine': {
+          const { ref, path: filePath, line } = message.payload;
+          const fullPath = this.resolveRepoRelativePath(filePath, 'openWorkingFileAtLine');
+          let target = line;
+          try {
+            target = await this.gitService.mapLineToWorkingTree(ref, filePath, line);
+          } catch {
+            // Mapping is best effort (file renamed/deleted since): keep the line.
+          }
+          await this.showAtLine(vscode.Uri.file(fullPath), target);
           break;
         }
         case 'getSelectionFileStats': {

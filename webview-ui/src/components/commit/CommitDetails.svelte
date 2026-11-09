@@ -194,6 +194,25 @@
       : (diffs.find(d => d.file === (selectedFile ?? '')) ?? null)
   );
 
+  // The two revisions the selected diff compares, so the diff view can expand
+  // hidden context and open the file at a line: a commit vs its first parent,
+  // staged (index vs HEAD) / unstaged (working tree vs index) changes, or the
+  // two refs of a comparison (the second one defaulting to the working tree).
+  let diffRefs = $derived.by((): { oldRef: string | null; newRef: string } | undefined => {
+    if (activeHash === 'UNCOMMITTED') {
+      return selectedFile?.startsWith('staged:')
+        ? { oldRef: 'HEAD', newRef: 'index' }
+        : { oldRef: 'index', newRef: 'working' };
+    }
+    if (commit && commit.hash !== 'UNCOMMITTED') {
+      return { oldRef: commit.parents.length > 0 ? `${commit.hash}^` : null, newRef: commit.hash };
+    }
+    if (uiStore.comparing && uiStore.compareRef1) {
+      return { oldRef: uiStore.compareRef1, newRef: uiStore.compareRef2 ?? 'working' };
+    }
+    return undefined;
+  });
+
   let selectedSections = $derived.by(() => {
     if (!selectedFile) return [];
     return sections
@@ -1134,6 +1153,7 @@
             <FileDiffView
               diff={sec.diff}
               commitHash={sec.commit}
+              refs={{ oldRef: `${sec.commit}^`, newRef: sec.commit }}
               stacked
               heading={sec.subject ? `${sec.shortHash}  ${sec.subject}` : sec.shortHash}
               onReverse={canReverseInThisView ? handleDiffReverse : undefined}
@@ -1147,6 +1167,7 @@
           diff={selectedDiff}
           commitHash={commit?.hash}
           staged={selectedFile?.startsWith('staged:') ?? false}
+          refs={diffRefs}
           onReverse={canReverseInThisView ? handleDiffReverse : undefined}
           onReverseHunk={canReverseInThisView ? handleHunkReverse : undefined}
           onReverseLines={canReverseInThisView ? handleLinesReverse : undefined}

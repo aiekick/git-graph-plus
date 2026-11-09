@@ -15,6 +15,7 @@ import { RepoDiscoveryService } from './services/repo-discovery';
 import { samePath } from './utils/path';
 import { resolveDefaultWorktreePath } from './utils/worktree-path';
 import { readTimeoutMs } from './utils/config';
+import { REVISION_SCHEME, RevisionContentProvider } from './services/revision-content-provider';
 
 /**
  * Resolve the `git.path` setting to an existing executable. The setting may be
@@ -38,6 +39,11 @@ export function activate(context: vscode.ExtensionContext) {
   // Persistent avatar cache lives under globalStorage so every window reuses
   // the same avatars instead of re-fetching from gravatar.com (issue #38).
   MainPanel.setAvatarCacheDir(vscode.Uri.joinPath(context.globalStorageUri, 'avatars').fsPath);
+
+  // Read-only "file at revision" documents opened from the diff view.
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, new RevisionContentProvider()),
+  );
 
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {

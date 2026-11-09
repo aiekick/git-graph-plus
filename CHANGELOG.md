@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.5 (unreleased)
+
+### New Features
+- **Expandable Diff Context** - Unchanged lines hidden between and around hunks can be revealed 20 at a time from either side, or all at once, in inline and side-by-side modes.
+- **Open File at a Line** - Double-click a diff line (or use a hunk's "Open in file" button) to open that version of the file in a read-only editor on that line; deleted lines open the previous version. A toolbar button opens the current working file at the matching place, following the changes made since.
+
 ## 0.7.4 (unreleased)
 
 First release of the [aiekick/git-graph-plus](https://github.com/aiekick/git-graph-plus) fork, based on upstream 0.7.3.
