@@ -42,6 +42,7 @@ import AmendModal from './components/modals/AmendModal.svelte';
   import { avatarStore } from './lib/stores/avatars.svelte';
   import { receiveSelectionFileStats } from './lib/selection-file-stats';
   import { receiveFileLines } from './lib/file-lines';
+  import HistoryBanner from './components/common/HistoryBanner.svelte';
   import SetUpstreamModal from './components/modals/SetUpstreamModal.svelte';
   import FlowInitModal from './components/modals/FlowInitModal.svelte';
   import FlowStartModal from './components/modals/FlowStartModal.svelte';
@@ -486,6 +487,12 @@ import AmendModal from './components/modals/AmendModal.svelte';
           onBranchFilterChange={handleBranchFilterChange}
           {headOffscreen}
           onJumpToHead={handleJumpToHead}
+        />
+      {/if}
+      {#if commitStore.history}
+        <HistoryBanner
+          filter={commitStore.history}
+          onClear={() => vscode.postMessage({ type: 'clearHistoryFilter' })}
         />
       {/if}
       {#if bisectMessage}

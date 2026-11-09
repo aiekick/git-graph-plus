@@ -83,6 +83,8 @@ export interface CommitGraphData {
   commitLeftMargin?: number[];
   hasMore?: boolean;
   currentLimit?: number;
+  /** Active file / line history filter, echoed back by the extension. */
+  history?: HistoryFilter | null;
 }
 
 export interface BranchInfo {
@@ -188,4 +190,12 @@ export interface FileStat {
   path: string;
   additions: number | null;
   deletions: number | null;
+}
+
+/** Restricts the graph to the commits touching a file, or a line range of it. */
+export interface HistoryFilter {
+  path: string;
+  /** 1-based inclusive line range (`git log -L`); both or neither. */
+  startLine?: number;
+  endLine?: number;
 }

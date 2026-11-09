@@ -6,6 +6,7 @@
 - **Expandable Diff Context** - Unchanged lines hidden between and around hunks can be revealed 20 at a time from either side, or all at once, in inline and side-by-side modes.
 - **Open File at a Line** - Double-click a diff line (or use a hunk's "Open in file" button) to open that version of the file in a read-only editor on that line; deleted lines open the previous version. A toolbar button opens the current working file at the matching place, following the changes made since.
 - **Restore a File Version** - Right-click a file in a commit's details to restore it in the working tree as it was at that commit, or just before it (several selected files at once). The index is left untouched; a file absent at that revision is deleted. A confirmation lists what will be overwritten.
+- **File & Line History** - "Git Graph+: Show File History" (explorer, editor tab and editor context menus) opens the graph restricted to the commits touching that file; "Show Line History" (editor context menu) restricts it to the commits touching the selected lines (`git log -L`). Parents are rewritten so the filtered history stays a connected graph; a banner shows the filter and goes back to the full history. Renames are not followed.
 
 ## 0.7.4 (unreleased)
 

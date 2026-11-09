@@ -123,5 +123,7 @@
   "restore": "Restore",
   "restoreFilesConfirm": "Restore {0} in the working tree as it was at {1}?",
   "restoreFilesDetail": "Uncommitted changes to these files will be lost. The index is not touched; a file that doesn't exist at that revision is deleted.",
-  "filesRestored": "{0} file(s) restored, {1} deleted, from {2}"
+  "filesRestored": "{0} file(s) restored, {1} deleted, from {2}",
+  "historyNoFile": "Open or select a file to show its history.",
+  "historyNotInRepo": "This file is not inside a git repository."
 }

@@ -388,6 +388,12 @@ export function activate(context: vscode.ExtensionContext) {
       if (sourceControl?.rootUri) { switchToRepo(sourceControl.rootUri.fsPath); }
       MainPanel.createOrShow(context.extensionUri, activeRepoPath);
     }),
+    vscode.commands.registerCommand('gitGraphPlus.showFileHistory', async (uri?: vscode.Uri) => {
+      await showHistory(context.extensionUri, uri, false);
+    }),
+    vscode.commands.registerCommand('gitGraphPlus.showLineHistory', async (uri?: vscode.Uri) => {
+      await showHistory(context.extensionUri, uri, true);
+    }),
     vscode.commands.registerCommand('gitGraphPlus.refresh', () => {
       refreshAll();
       MainPanel.currentPanel?.postRefresh();
@@ -600,4 +606,34 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   MainPanel.onSidebarRefresh = null;
   MainPanel.onRepoChange = null;
+}
+
+/**
+ * Opens the graph filtered on the history of a file (explorer / editor title
+ * menus pass its URI; otherwise the active editor's file), or of the lines
+ * selected in the active editor.
+ */
+async function showHistory(extensionUri: vscode.Uri, uri: vscode.Uri | undefined, lines: boolean): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  const target = uri ?? editor?.document.uri;
+  if (!target || target.scheme !== 'file') {
+    vscode.window.showWarningMessage(vscode.l10n.t('historyNoFile'));
+    return;
+  }
+  let repoRoot: string;
+  try {
+    repoRoot = await new GitService(path.dirname(target.fsPath)).showToplevel();
+  } catch {
+    vscode.window.showWarningMessage(vscode.l10n.t('historyNotInRepo'));
+    return;
+  }
+  const rel = path.relative(repoRoot, target.fsPath).split(path.sep).join('/');
+  const filter: { path: string; startLine?: number; endLine?: number } = { path: rel };
+  if (lines && editor && editor.document.uri.toString() === target.toString()) {
+    const sel = editor.selection;
+    filter.startLine = sel.start.line + 1;
+    // A selection ending at column 0 of a line doesn't include that line.
+    filter.endLine = Math.max(filter.startLine, sel.end.character === 0 && sel.end.line > sel.start.line ? sel.end.line : sel.end.line + 1);
+  }
+  MainPanel.showHistory(extensionUri, repoRoot, filter);
 }

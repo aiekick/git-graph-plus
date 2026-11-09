@@ -23,5 +23,7 @@
   "command.openWorktreeInFileExplorer": "Open in File Explorer",
   "command.removeWorktree": "Remove Worktree",
   "command.addWorktree": "Add Worktree",
-  "command.pruneWorktrees": "Prune Worktrees"
+  "command.pruneWorktrees": "Prune Worktrees",
+  "command.showFileHistory": "Git Graph+: Show File History",
+  "command.showLineHistory": "Git Graph+: Show Line History"
 }

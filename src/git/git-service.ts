@@ -511,6 +511,25 @@ export class GitService {
       '--author-date-order'
     );
 
+    // File / line history: keep only the commits touching the path (or line
+    // range). --parents rewrites each commit's parents to its nearest kept
+    // ancestors, so %P still yields a connected graph. (--follow would disable
+    // that rewriting, so renames are not followed.)
+    const history = options?.history;
+    if (history) {
+      this.assertSafePath(history.path, 'log');
+      args.push('--parents');
+      if (history.startLine !== undefined || history.endLine !== undefined) {
+        const start = history.startLine ?? 0;
+        const end = history.endLine ?? 0;
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) {
+          throw new GitError(`Invalid line range ${start},${end}`, null, ['log']);
+        }
+        // -s: no patch output, only the commit lines.
+        args.push(`-L${start},${end}:${history.path}`, '-s');
+      }
+    }
+
     if (options?.limit) {
       args.push(`--max-count=${options.limit}`);
     }
@@ -537,6 +556,7 @@ export class GitService {
     // first page: with branch/remote filters or pagination the extra ancestry
     // would leak commits outside the requested scope.
     if (
+      !history &&
       !options?.skip &&
       !options?.branch &&
       (!options?.branches || options.branches.length === 0) &&
@@ -552,11 +572,15 @@ export class GitService {
       }
     }
 
+    if (history && history.startLine === undefined) args.push('--', history.path);
+
     const [raw, remoteNames] = await Promise.all([
       this.exec(args),
       this.getRemoteNames(),
     ]);
     const commits = parseLog(raw, remoteNames);
+    // A history view shows commits only: no stash rows, no uncommitted row.
+    if (history) return commits;
 
     // Insert stash commits into the graph as separate rows
     if (stashes.length > 0) {
@@ -2415,6 +2439,11 @@ export class GitService {
       // hide the others.
       throw new AggregateError(errors, `Failed to delete tag from ${errors.length} remotes`);
     }
+  }
+
+  /** Top-level directory of the repository containing this service's path. */
+  async showToplevel(): Promise<string> {
+    return (await this.exec(['rev-parse', '--show-toplevel'], { silent: true })).trim();
   }
 
   // --- Restore files as they were at a revision ---

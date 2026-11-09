@@ -23,5 +23,7 @@
   "command.openWorktreeInFileExplorer": "在文件资源管理器中打开",
   "command.removeWorktree": "移除工作树",
   "command.addWorktree": "添加工作树",
-  "command.pruneWorktrees": "修剪工作树"
+  "command.pruneWorktrees": "修剪工作树",
+  "command.showFileHistory": "Git Graph+: 显示文件历史",
+  "command.showLineHistory": "Git Graph+: 显示行历史"
 }

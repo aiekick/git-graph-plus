@@ -175,6 +175,15 @@
         "command": "gitGraphPlus.pruneWorktrees",
         "title": "%command.pruneWorktrees%",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "gitGraphPlus.showFileHistory",
+        "title": "%command.showFileHistory%",
+        "icon": "$(history)"
+      },
+      {
+        "command": "gitGraphPlus.showLineHistory",
+        "title": "%command.showLineHistory%"
       }
     ],
     "views": {
@@ -214,6 +223,32 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "command": "gitGraphPlus.showFileHistory",
+          "when": "!explorerResourceIsFolder",
+          "group": "gitGraphPlus@1"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "gitGraphPlus.showFileHistory",
+          "when": "resourceScheme == file",
+          "group": "gitGraphPlus@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gitGraphPlus.showFileHistory",
+          "when": "resourceScheme == file",
+          "group": "gitGraphPlus@1"
+        },
+        {
+          "command": "gitGraphPlus.showLineHistory",
+          "when": "resourceScheme == file",
+          "group": "gitGraphPlus@2"
+        }
+      ],
       "editor/title": [
         {
           "command": "gitGraphPlus.open",

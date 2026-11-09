@@ -1,4 +1,4 @@
-import type { Commit, GraphNode, CommitGraphData, GraphPathData, GraphLinkData, GraphDotData } from '../types';
+import type { Commit, GraphNode, CommitGraphData, GraphPathData, GraphLinkData, GraphDotData, HistoryFilter } from '../types';
 
 class CommitStore {
   commits = $state<Commit[]>([]);
@@ -12,6 +12,8 @@ class CommitStore {
   hasMore = $state(false);
   currentLimit = $state(0);
   notGitRepo = $state(false);
+  /** File / line history filter the graph is restricted to (null = full). */
+  history = $state<HistoryFilter | null>(null);
 
   // Hash → entry maps derived from the arrays so they auto-rebuild whether
   // callers replace via setData() or assign `commits` / `graphNodes`
@@ -36,6 +38,7 @@ class CommitStore {
     this.links = data.links ?? [];
     this.dots = data.dots ?? [];
     this.commitLeftMargin = data.commitLeftMargin ?? [];
+    this.history = data.history ?? null;
     this.hasMore = data.hasMore ?? false;
     if (data.currentLimit) this.currentLimit = data.currentLimit;
     this.loading = false;

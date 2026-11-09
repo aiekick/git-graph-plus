@@ -84,6 +84,8 @@ export interface CommitGraphData {
   currentLimit?: number;
   remoteFilter?: string[];
   branches?: string[];
+  /** Active file / line history filter, echoed back to the webview. */
+  history?: HistoryFilter | null;
 }
 
 export interface BranchInfo {
@@ -173,6 +175,9 @@ export interface LogOptions {
    *  signatureStatus. Off by default — it forces GPG verification of every
    *  commit in the log, which is slow on large repos. */
   includeSignature?: boolean;
+  /** Only commits touching this file (or line range), with parents rewritten
+   *  so the filtered history still forms a connected graph. */
+  history?: HistoryFilter;
 }
 
 /** Per-file line counts of a commit (`git log --numstat`); null for binary files. */
@@ -180,4 +185,12 @@ export interface FileStat {
   path: string;
   additions: number | null;
   deletions: number | null;
+}
+
+/** Restricts the graph to the commits touching a file, or a line range of it. */
+export interface HistoryFilter {
+  path: string;
+  /** 1-based inclusive line range (`git log -L`); both or neither. */
+  startLine?: number;
+  endLine?: number;
 }
