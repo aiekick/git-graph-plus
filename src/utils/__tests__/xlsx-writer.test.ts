@@ -72,29 +72,42 @@ describe('buildXlsx', () => {
   });
 
   it('writes escaped inline strings', () => {
-    expect(sheet).toContain('<c r="D2" t="inlineStr"><is><t xml:space="preserve">Merge &lt;feature&gt; &amp; &quot;x&quot;</t></is></c>');
+    expect(sheet).toContain('<c r="D4" t="inlineStr"><is><t xml:space="preserve">Merge &lt;feature&gt; &amp; &quot;x&quot;</t></is></c>');
   });
 
   it('stores the date column as numbers with a date format', () => {
-    expect(sheet).toMatch(/<c r="G2" s="2"><v>46334\.52361\d*<\/v><\/c>/);
+    expect(sheet).toMatch(/<c r="G4" s="2"><v>46334\.52361\d*<\/v><\/c>/);
     expect(styles).toContain('formatCode="yyyy\\-mm\\-dd\\ hh:mm"');
   });
 
-  it('colors lane cells with their lane color', () => {
-    expect(styles).toContain('<fgColor rgb="FF63B0F4"/>');
-    expect(styles).toContain('<fgColor rgb="FFFF4D4F"/>');
-    // main: header + commit cell filled (xf 5), passing cell colored font (xf 6)
-    expect(sheet).toContain('<c r="A1" s="5" t="inlineStr">');
-    expect(sheet).toContain('<c r="A2" s="5" t="inlineStr">');
-    expect(sheet).toContain('<c r="A3" s="6" t="inlineStr">');
-    // feature: commit cell filled with its own color (xf 7); empty lane cell omitted
-    expect(sheet).toContain('<c r="B3" s="7" t="inlineStr">');
-    expect(sheet).not.toContain('r="B2"');
+  it('puts branch names on staircase title rows colored to the right', () => {
+    // xf 5/6 = main lane cell / name, xf 7/8 = feature lane cell / name
+    expect(sheet).toContain('<c r="A1" s="6" t="inlineStr"><is><t xml:space="preserve">main</t>');
+    expect(sheet).toContain('<c r="G1" s="6"/>');
+    expect(sheet).toContain('<c r="A2" s="5"/>');
+    expect(sheet).toContain('<c r="B2" s="8" t="inlineStr"><is><t xml:space="preserve">feature</t>');
+    expect(sheet).toContain('<c r="G2" s="8"/>');
+    expect(styles).toContain('<alignment horizontal="left"/>');
   });
 
-  it('freezes the header and adds an autofilter', () => {
-    expect(sheet).toContain('state="frozen"');
-    expect(sheet).toContain('<autoFilter ref="A1:G3"/>');
+  it('puts the table header after the title rows, lanes colored and empty', () => {
+    expect(sheet).toContain('<row r="3"><c r="A3" s="5"/><c r="B3" s="7"/><c r="C3" s="1" t="inlineStr"><is><t xml:space="preserve">Tag</t>');
+  });
+
+  it('colors lane columns all the way down, marked or not', () => {
+    expect(styles).toContain('<fgColor rgb="FF63B0F4"/>');
+    expect(styles).toContain('<fgColor rgb="FFFF4D4F"/>');
+    expect(sheet).toContain('<c r="A4" s="5" t="inlineStr"><is><t xml:space="preserve">●</t>');
+    expect(sheet).toContain('<c r="B4" s="7"/>');
+    expect(sheet).toContain('<c r="A5" s="5" t="inlineStr"><is><t xml:space="preserve">│</t>');
+    expect(sheet).toContain('<c r="B5" s="7" t="inlineStr"><is><t xml:space="preserve">●</t>');
+    expect(sheet).toContain('<col min="1" max="1" width="3" customWidth="1"/>');
+  });
+
+  it('filters from the header row and freezes titles, header and lanes', () => {
+    expect(sheet).toContain('<autoFilter ref="A3:G5"/>');
+    expect(sheet).toContain('<pane xSplit="2" ySplit="3" topLeftCell="C4" activePane="bottomRight" state="frozen"/>');
+    expect(files.get('xl/workbook.xml')).toContain("'Commits'!$A$3:$G$5");
   });
 
   it('stores line counts as numbers and shades commit lines in the detailed export', () => {
@@ -110,11 +123,11 @@ describe('buildXlsx', () => {
       numberColumns: [7, 8],
       fileRows: [false, true, true],
     })).get('xl/worksheets/sheet1.xml')!;
-    expect(detailed).toContain('<c r="C2" s="3" t="inlineStr">'); // commit line: bold + shade
-    expect(detailed).toContain('<c r="F2" s="4"><v>');            // commit-line date
-    expect(detailed).toContain('<c r="H2" s="3"><v>12</v></c>');  // total as number
-    expect(detailed).toContain('<c r="H3"><v>12</v></c>');        // file count as number
-    expect(detailed).toContain('<c r="G3" t="inlineStr"><is><t xml:space="preserve">src/parser.ts</t>');
-    expect(detailed).toContain('<c r="H4" t="inlineStr"><is><t xml:space="preserve">-</t>'); // binary
+    expect(detailed).toContain('<c r="C3" s="3" t="inlineStr">'); // commit line: bold + shade
+    expect(detailed).toContain('<c r="F3" s="4"><v>');            // commit-line date
+    expect(detailed).toContain('<c r="H3" s="3"><v>12</v></c>');  // total as number
+    expect(detailed).toContain('<c r="H4"><v>12</v></c>');        // file count as number
+    expect(detailed).toContain('<c r="G4" t="inlineStr"><is><t xml:space="preserve">src/parser.ts</t>');
+    expect(detailed).toContain('<c r="H5" t="inlineStr"><is><t xml:space="preserve">-</t>'); // binary
   });
 });

@@ -4,9 +4,11 @@ import * as zlib from 'zlib';
  * Minimal, dependency-free .xlsx writer for the graph selection export.
  *
  * Produces a single-sheet workbook with inline strings (no shared-string
- * table): bold frozen header with an autofilter, column widths fitted to the
- * content, lane columns colored with their graph color, and an optional column
- * of `YYYY-MM-DD HH:MM` strings stored as real Excel dates.
+ * table): branch names on staircase title rows above the table, narrow lane
+ * columns colored with their graph color from their title row down, a bold
+ * header with an autofilter, frozen titles/header/lanes, column widths fitted
+ * to the content, and an optional column of `YYYY-MM-DD HH:MM` strings stored
+ * as real Excel dates.
  */
 export interface XlsxTable {
   headers: string[];
@@ -148,21 +150,27 @@ export function buildXlsx(table: XlsxTable): Buffer {
   const laneCount = table.laneColors.length;
   const colCount = table.headers.length;
 
-  // Styles: per distinct lane color a solid fill (commit cell / lane header)
-  // and a colored font (passing-lane cell).
+  // Layout: one title row per lane on top, laid out as a staircase — lane k's
+  // branch name sits in row k+1, column k, and its color runs right along that
+  // row and down its column. The table header (with the autofilter) follows,
+  // then the data. Lane columns stay narrow; the names overflow to the right.
+  const headerRow = laneCount + 1;
+  const firstDataRow = headerRow + 1;
+  const lastRow = headerRow + table.rows.length;
+
+  // Styles: per distinct lane color a solid fill with a contrasting bold font,
+  // centered for the ●/│ cells, left-aligned for the branch name (so it
+  // overflows to the right instead of both ways).
   const colorIndex = new Map<string, number>();
   const laneArgb = table.laneColors.map(c => toArgb(c) ?? 'FF888888');
   for (const argb of laneArgb) if (!colorIndex.has(argb)) colorIndex.set(argb, colorIndex.size);
   const colors = [...colorIndex.keys()];
 
-  // fonts: 0 default, 1 bold, then per color: [bold contrast-on-fill, bold lane color]
+  // fonts: 0 default, 1 bold, then per color: bold contrast-on-fill
   const fonts = [
     '<font><sz val="11"/><name val="Calibri"/></font>',
     '<font><b/><sz val="11"/><name val="Calibri"/></font>',
-    ...colors.flatMap(c => [
-      `<font><b/><sz val="11"/><color rgb="${contrastFont(c)}"/><name val="Calibri"/></font>`,
-      `<font><b/><sz val="11"/><color rgb="${c}"/><name val="Calibri"/></font>`,
-    ]),
+    ...colors.map(c => `<font><b/><sz val="11"/><color rgb="${contrastFont(c)}"/><name val="Calibri"/></font>`),
   ];
   // fills: 0 none, 1 gray125 (both required), 2 header gray, 3 commit-line
   // shade, then one per color
@@ -173,9 +181,8 @@ export function buildXlsx(table: XlsxTable): Buffer {
     '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>',
     ...colors.map(c => `<fill><patternFill patternType="solid"><fgColor rgb="${c}"/><bgColor indexed="64"/></patternFill></fill>`),
   ];
-  const center = '<alignment horizontal="center"/>';
   // cellXfs: 0 default, 1 header, 2 date, 3 commit line, 4 commit-line date,
-  // then per color: [filled, passing]
+  // then per color: [lane cell (centered), branch name (left)]
   const XF_HEADER = 1;
   const XF_DATE = 2;
   const XF_COMMIT = 3;
@@ -188,12 +195,12 @@ export function buildXlsx(table: XlsxTable): Buffer {
     '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>',
     '<xf numFmtId="164" fontId="1" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>',
     ...colors.flatMap((_, i) => [
-      `<xf numFmtId="0" fontId="${2 + 2 * i}" fillId="${4 + i}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1">${center}</xf>`,
-      `<xf numFmtId="0" fontId="${3 + 2 * i}" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1">${center}</xf>`,
+      `<xf numFmtId="0" fontId="${2 + i}" fillId="${4 + i}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf>`,
+      `<xf numFmtId="0" fontId="${2 + i}" fillId="${4 + i}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left"/></xf>`,
     ]),
   ];
-  const xfFilled = (lane: number) => XF_LANES + 2 * colorIndex.get(laneArgb[lane])!;
-  const xfPassing = (lane: number) => xfFilled(lane) + 1;
+  const xfLane = (lane: number) => XF_LANES + 2 * colorIndex.get(laneArgb[lane])!;
+  const xfLaneName = (lane: number) => xfLane(lane) + 1;
 
   const styles = XML_HEAD +
     `<styleSheet xmlns="${NS_MAIN}">` +
@@ -212,25 +219,35 @@ export function buildXlsx(table: XlsxTable): Buffer {
       : `<c r="${ref}"${s ? ` s="${s}"` : ''} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(v)}</t></is></c>`;
 
   const sheetRows: string[] = [];
+  // Lane title rows (staircase).
+  for (let lane = 0; lane < laneCount; lane++) {
+    const r = lane + 1;
+    const cells: string[] = [];
+    for (let c = 0; c < colCount; c++) {
+      const ref = `${columnName(c)}${r}`;
+      if (c < lane) cells.push(str(ref, '', xfLane(c))); // earlier lanes' columns
+      else if (c === lane) cells.push(str(ref, table.headers[lane], xfLaneName(lane)));
+      else cells.push(str(ref, '', xfLaneName(lane))); // the name's row band
+    }
+    sheetRows.push(`<row r="${r}">${cells.join('')}</row>`);
+  }
+  // Table header: lane columns keep their color, no text.
   sheetRows.push(
-    `<row r="1">${table.headers
-      .map((h, c) => str(`${columnName(c)}1`, h, c < laneCount ? xfFilled(c) : XF_HEADER))
+    `<row r="${headerRow}">${table.headers
+      .map((h, c) => str(`${columnName(c)}${headerRow}`, c < laneCount ? '' : h, c < laneCount ? xfLane(c) : XF_HEADER))
       .join('')}</row>`,
   );
   const numberCols = new Set(table.numberColumns ?? []);
   const detailed = (table.fileRows ?? []).some(Boolean);
   table.rows.forEach((row, i) => {
-    const r = i + 2;
+    const r = firstDataRow + i;
     // In the detailed export, commit lines are shaded/bold above their files.
     const shaded = detailed && !table.fileRows![i];
     const text = shaded ? XF_COMMIT : 0;
     const cells = row.map((v, c) => {
       const ref = `${columnName(c)}${r}`;
-      if (c < laneCount) {
-        if (v === '') return '';
-        // '●' marks the commit's own lane, anything else a lane passing through.
-        return str(ref, v, v === '●' ? xfFilled(c) : xfPassing(c));
-      }
+      // Lane columns are colored all the way down, marked or not.
+      if (c < laneCount) return str(ref, v, xfLane(c));
       if (c === table.dateColumn) {
         const serial = excelDate(v);
         if (serial !== null) return `<c r="${ref}" s="${shaded ? XF_COMMIT_DATE : XF_DATE}"><v>${serial}</v></c>`;
@@ -243,29 +260,38 @@ export function buildXlsx(table: XlsxTable): Buffer {
     sheetRows.push(`<row r="${r}">${cells.join('')}</row>`);
   });
 
-  // Width ≈ longest value (in characters) + padding, capped.
+  // Lane columns are narrow (names overflow in their title row); others fit
+  // the longest value (in characters) + padding, capped.
   const widths = table.headers.map((h, c) => {
+    if (c < laneCount) return 3;
     let w = h.length;
     for (const row of table.rows) w = Math.max(w, (row[c] ?? '').length);
     if (c === table.dateColumn) w = Math.max(w, 16);
-    return Math.min(Math.max(w + 2, c < laneCount ? 4 : 8), 80);
+    return Math.min(Math.max(w + 2, 8), 80);
   });
   const cols = widths
     .map((w, c) => `<col min="${c + 1}" max="${c + 1}" width="${w}" customWidth="1"/>`)
     .join('');
 
-  const lastRef = `${columnName(Math.max(colCount - 1, 0))}${table.rows.length + 1}`;
+  // Freeze the title rows + header, and the lane columns.
+  const topLeft = `${columnName(laneCount)}${firstDataRow}`;
+  const pane = laneCount > 0
+    ? `<pane xSplit="${laneCount}" ySplit="${headerRow}" topLeftCell="${topLeft}" activePane="bottomRight" state="frozen"/>` +
+      '<selection pane="topRight"/><selection pane="bottomLeft"/>' +
+      `<selection pane="bottomRight" activeCell="${topLeft}" sqref="${topLeft}"/>`
+    : `<pane ySplit="${headerRow}" topLeftCell="${topLeft}" activePane="bottomLeft" state="frozen"/>` +
+      `<selection pane="bottomLeft" activeCell="${topLeft}" sqref="${topLeft}"/>`;
+
+  const lastCol = columnName(Math.max(colCount - 1, 0));
+  const filterRef = `A${headerRow}:${lastCol}${lastRow}`;
   const sheet = XML_HEAD +
     `<worksheet xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">` +
-    `<dimension ref="A1:${lastRef}"/>` +
-    '<sheetViews><sheetView workbookViewId="0">' +
-    '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
-    '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/>' +
-    '</sheetView></sheetViews>' +
+    `<dimension ref="A1:${lastCol}${lastRow}"/>` +
+    `<sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>` +
     '<sheetFormatPr defaultRowHeight="15"/>' +
     `<cols>${cols}</cols>` +
     `<sheetData>${sheetRows.join('')}</sheetData>` +
-    `<autoFilter ref="A1:${lastRef}"/>` +
+    `<autoFilter ref="${filterRef}"/>` +
     '</worksheet>';
 
   // Sheet names: max 31 chars, none of []:*?/\
@@ -274,7 +300,7 @@ export function buildXlsx(table: XlsxTable): Buffer {
     `<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">` +
     `<sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets>` +
     '<definedNames>' +
-    `<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${sheetName.replace(/'/g, "''")}'!$A$1:$${columnName(Math.max(colCount - 1, 0))}$${table.rows.length + 1}</definedName>` +
+    `<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${sheetName.replace(/'/g, "''")}'!$A$${headerRow}:$${lastCol}$${lastRow}</definedName>` +
     '</definedNames>' +
     '</workbook>';
 
