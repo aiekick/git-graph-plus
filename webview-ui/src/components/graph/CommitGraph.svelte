@@ -26,6 +26,7 @@
   import type { Commit, CommitGraphData } from '../../lib/types';
   import { tooltip } from '../../lib/actions/tooltip';
   import { getSquashChain } from '../../lib/utils/squash';
+  import { buildSelectionTable, toCsv, toMarkdown } from '../../lib/graph-export';
   import { chainBranches } from '../../lib/utils/branchChain';
   import RebaseTargetModal from '../modals/RebaseTargetModal.svelte';
   import DirtyActionModal from '../modals/DirtyActionModal.svelte';
@@ -828,6 +829,28 @@
       multiItems.push({
         label: t('graph.cherryPickCommits', { count: String(sel.length) }),
         action: () => { multiCherryPickTargets = orderedOldestFirst; },
+      });
+      multiItems.push({ separator: true, label: '', action: () => {} });
+      // Export the selected rows (lanes + tag/description/author/SHA/date) to the clipboard.
+      const copySelection = (format: (table: ReturnType<typeof buildSelectionTable>) => string) => {
+        const table = buildSelectionTable(displayCommits, displayPaths, displayDots, sel, {
+          lane: t('export.lane'),
+          tag: t('export.tag'),
+          description: t('export.description'),
+          author: t('details.author'),
+          sha: t('export.sha'),
+          date: t('details.date'),
+        });
+        vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(table) } });
+      };
+      const exportCount = String(orderedOldestFirst.length);
+      multiItems.push({
+        label: t('graph.copySelectionMarkdown', { count: exportCount }),
+        action: () => copySelection(toMarkdown),
+      });
+      multiItems.push({
+        label: t('graph.copySelectionCsv', { count: exportCount }),
+        action: () => copySelection(toCsv),
       });
       multiItems.push({ separator: true, label: '', action: () => {} });
       multiItems.push({

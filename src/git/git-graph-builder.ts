@@ -32,6 +32,9 @@ export interface GraphDot {
   type: 'default' | 'head' | 'merge';
   localOnly: boolean;
   remoteTip: boolean;
+  /** Index in `FullGraphData.paths` of the rail this commit sits on. Absent for
+   *  a parentless commit that starts no rail. */
+  rail?: number;
 }
 
 export interface FullGraphData {
@@ -48,6 +51,8 @@ class PathHelper {
   path: GraphPath;
   next: string;
   lastX: number;
+  /** Index of `path` in `FullGraphData.paths`, set when the path is emitted. */
+  railIndex = -1;
   private lastY: number;
   private endY: number = 0;
 
@@ -372,7 +377,7 @@ export function buildFullGraph(
         major = new PathHelper(commit.parents[0], pickColor(unsolved, colorOverflow), { x: offsetX, y: offsetY });
         unsolved.push(major);
         trackNext(major);
-        result.paths.push(major.path);
+        major.railIndex = result.paths.push(major.path) - 1;
       }
     }
 
@@ -417,7 +422,7 @@ export function buildFullGraph(
           const l = new PathHelper(parentHash, pickColor(unsolved, colorOverflow), position, { x: offsetX, y: position.y + HALF_H });
           unsolved.push(l);
           trackNext(l);
-          result.paths.push(l.path);
+          l.railIndex = result.paths.push(l.path) - 1;
         }
       }
     }
@@ -432,6 +437,8 @@ export function buildFullGraph(
   for (let i = 0; i < result.dots.length; i++) {
     const override = dotPaths[i]?.path.colorOverride ?? tipColorMap.get(commits[i].hash);
     if (override) result.dots[i].colorOverride = override;
+    const rail = dotPaths[i]?.railIndex ?? -1;
+    if (rail >= 0) result.dots[i].rail = rail;
   }
 
   // End remaining paths at the bottom of the graph. End them on their own rail

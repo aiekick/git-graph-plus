@@ -53,6 +53,7 @@ A modern, full-featured Git GUI for VS Code. Visualize your commit history, mana
 | **Branch Filter**       | Filter the commit graph to show only commits reachable from a selected branch                                         |
 | **Uncommitted Changes** | Shows pending uncommitted changes as a virtual node. Clicking it opens the VS Code SCM view for staging/committing. |
 | **Push Status**         | Blue dot for local-only commits (not pushed), gray dot for remote-only commits (remote ahead)                         |
+| **Export Selection**    | Right-click a multi-commit selection to copy it as a Markdown table or CSV: one column per graph lane (`●` commit, `│` passing lane), then tag, description, author, SHA and date |
 | **Avatars**             | Gravatar avatars displayed next to author names (can be turned off with `gitGraphPlus.showAvatars`)                  |
 | **Themes**              | Full support for light, dark, and high-contrast VS Code themes                                                        |
 

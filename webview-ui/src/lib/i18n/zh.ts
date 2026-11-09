@@ -226,6 +226,12 @@ export const zh: Record<string, string> = {
   // Multi-select (squash / cherry-pick selected commits)
   'graph.squashCommits': 'Squash {count} 个提交',
   'graph.cherryPickCommits': 'Cherry-pick {count} 个提交',
+  'graph.copySelectionMarkdown': '将 {count} 个提交复制为 Markdown',
+  'graph.copySelectionCsv': '将 {count} 个提交复制为 CSV',
+  'export.lane': '泳道 {n}',
+  'export.tag': '标签',
+  'export.description': '描述',
+  'export.sha': 'SHA',
   'graph.interactiveRebaseSelection': 'Interactive Rebase {count} 个提交',
   'rebaseTarget.title': '检出',
   'rebaseTarget.desc': '这些提交不在当前分支上，需要在 rebase 前检出到该分支。',

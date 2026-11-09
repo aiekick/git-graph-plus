@@ -226,6 +226,12 @@ export const ko: Record<string, string> = {
   // Multi-select (squash / cherry-pick selected commits)
   'graph.squashCommits': 'Commit {count}개 Squash',
   'graph.cherryPickCommits': 'Commit {count}개 Cherry-pick',
+  'graph.copySelectionMarkdown': 'Commit {count}개를 Markdown으로 복사',
+  'graph.copySelectionCsv': 'Commit {count}개를 CSV로 복사',
+  'export.lane': '레인 {n}',
+  'export.tag': '태그',
+  'export.description': '설명',
+  'export.sha': 'SHA',
   'graph.interactiveRebaseSelection': 'Commit {count}개 Interactive Rebase',
   'rebaseTarget.title': 'Checkout',
   'rebaseTarget.desc': '이 commit들이 현재 branch에 없어, rebase 전에 해당 branch로 checkout해야 합니다.',

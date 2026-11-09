@@ -69,6 +69,8 @@ export interface GraphDotData {
   color: number;
   colorOverride?: string;
   type: 'default' | 'head' | 'merge' | 'remote-tip';
+  /** Index in `paths` of the rail this commit sits on (absent for a lone root). */
+  rail?: number;
 }
 
 export interface CommitGraphData {

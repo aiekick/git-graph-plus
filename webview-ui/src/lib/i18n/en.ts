@@ -226,6 +226,12 @@ export const en: Record<string, string> = {
   // Multi-select (squash / cherry-pick selected commits)
   'graph.squashCommits': 'Squash {count} commits',
   'graph.cherryPickCommits': 'Cherry-pick {count} commits',
+  'graph.copySelectionMarkdown': 'Copy {count} commits as Markdown',
+  'graph.copySelectionCsv': 'Copy {count} commits as CSV',
+  'export.lane': 'Lane {n}',
+  'export.tag': 'Tag',
+  'export.description': 'Description',
+  'export.sha': 'SHA',
   'graph.interactiveRebaseSelection': 'Interactive Rebase {count} commits',
   'rebaseTarget.title': 'Checkout',
   'rebaseTarget.desc': 'These commits are not on the current branch, so you must check out that branch before the rebase.',

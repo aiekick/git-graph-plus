@@ -70,6 +70,8 @@ export interface GraphDotData {
   type: 'default' | 'head' | 'merge';
   localOnly: boolean;
   remoteTip: boolean;
+  /** Index in `paths` of the rail this commit sits on (absent for a lone root). */
+  rail?: number;
 }
 
 export interface CommitGraphData {
