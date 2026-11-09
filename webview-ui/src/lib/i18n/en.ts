@@ -228,6 +228,8 @@ export const en: Record<string, string> = {
   'graph.cherryPickCommits': 'Cherry-pick {count} commits',
   'graph.copySelectionMarkdown': 'Copy {count} commits as Markdown',
   'graph.copySelectionCsv': 'Copy {count} commits as CSV',
+  'graph.exportSelectionMarkdown': 'Export {count} commits to Markdown file…',
+  'graph.exportSelectionCsv': 'Export {count} commits to CSV file…',
   'export.lane': 'Lane {n}',
   'export.tag': 'Tag',
   'export.description': 'Description',

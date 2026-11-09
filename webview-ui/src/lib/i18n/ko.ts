@@ -228,6 +228,8 @@ export const ko: Record<string, string> = {
   'graph.cherryPickCommits': 'Commit {count}개 Cherry-pick',
   'graph.copySelectionMarkdown': 'Commit {count}개를 Markdown으로 복사',
   'graph.copySelectionCsv': 'Commit {count}개를 CSV로 복사',
+  'graph.exportSelectionMarkdown': 'Commit {count}개를 Markdown 파일로 내보내기…',
+  'graph.exportSelectionCsv': 'Commit {count}개를 CSV 파일로 내보내기…',
   'export.lane': '레인 {n}',
   'export.tag': '태그',
   'export.description': '설명',

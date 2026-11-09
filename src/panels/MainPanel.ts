@@ -1275,6 +1275,26 @@ export class MainPanel {
           }
           break;
         }
+        case 'saveSelectionExport': {
+          // VS Code's own save dialog: on a remote window it opens on the remote
+          // file system and offers "Show Local" to save on this machine instead.
+          const isCsv = message.payload.format === 'csv';
+          const ext = isCsv ? 'csv' : 'md';
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(path.join(this.repoPath, `git-graph-selection.${ext}`)),
+            filters: isCsv ? { CSV: ['csv'] } : { Markdown: ['md'] },
+            title: vscode.l10n.t(isCsv ? 'exportSelectionCsvTitle' : 'exportSelectionMarkdownTitle'),
+          });
+          if (!uri) break;
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(message.payload.text, 'utf8'));
+          const open = vscode.l10n.t('openFile');
+          const choice = await vscode.window.showInformationMessage(
+            vscode.l10n.t('selectionExported', uri.scheme === 'file' ? uri.fsPath : uri.toString()),
+            open,
+          );
+          if (choice === open) await vscode.window.showTextDocument(uri);
+          break;
+        }
         case 'restoreStashFiles': {
           const { index, paths: stashPaths } = message.payload;
           await this.gitService.stashRestoreFiles(index, stashPaths);

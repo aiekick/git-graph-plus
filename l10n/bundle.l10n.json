@@ -113,5 +113,9 @@
   "remoteBranchDeleted": "Remote branch '{0}/{1}' deleted",
   "remoteAdded": "Remote '{0}' added",
   "remoteRemoved": "Remote '{0}' removed",
-  "worktreeRemoved": "Worktree removed"
+  "worktreeRemoved": "Worktree removed",
+  "exportSelectionMarkdownTitle": "Export selected commits to a Markdown file",
+  "exportSelectionCsvTitle": "Export selected commits to a CSV file",
+  "selectionExported": "Selection exported to {0}",
+  "openFile": "Open"
 }

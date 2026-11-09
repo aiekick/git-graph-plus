@@ -228,6 +228,8 @@ export const zh: Record<string, string> = {
   'graph.cherryPickCommits': 'Cherry-pick {count} 个提交',
   'graph.copySelectionMarkdown': '将 {count} 个提交复制为 Markdown',
   'graph.copySelectionCsv': '将 {count} 个提交复制为 CSV',
+  'graph.exportSelectionMarkdown': '将 {count} 个提交导出为 Markdown 文件…',
+  'graph.exportSelectionCsv': '将 {count} 个提交导出为 CSV 文件…',
   'export.lane': '泳道 {n}',
   'export.tag': '标签',
   'export.description': '描述',

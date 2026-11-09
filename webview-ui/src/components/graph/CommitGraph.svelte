@@ -831,9 +831,9 @@
         action: () => { multiCherryPickTargets = orderedOldestFirst; },
       });
       multiItems.push({ separator: true, label: '', action: () => {} });
-      // Export the selected rows (lanes + tag/description/author/SHA/date) to the clipboard.
-      const copySelection = (format: (table: ReturnType<typeof buildSelectionTable>) => string) => {
-        const table = buildSelectionTable(displayCommits, displayPaths, displayDots, sel, {
+      // Export the selected rows (lanes + tag/description/author/SHA/date) to the clipboard or a file.
+      const selectionTable = () =>
+        buildSelectionTable(displayCommits, displayPaths, displayDots, sel, {
           lane: t('export.lane'),
           tag: t('export.tag'),
           description: t('export.description'),
@@ -841,7 +841,15 @@
           sha: t('export.sha'),
           date: t('details.date'),
         });
-        vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(table) } });
+      const copySelection = (format: (table: ReturnType<typeof buildSelectionTable>) => string) => {
+        vscode.postMessage({ type: 'copyToClipboard', payload: { text: format(selectionTable()) } });
+      };
+      const saveSelection = (format: 'markdown' | 'csv') => {
+        const table = selectionTable();
+        vscode.postMessage({
+          type: 'saveSelectionExport',
+          payload: { format, text: format === 'csv' ? toCsv(table) : toMarkdown(table) },
+        });
       };
       const exportCount = String(orderedOldestFirst.length);
       multiItems.push({
@@ -851,6 +859,14 @@
       multiItems.push({
         label: t('graph.copySelectionCsv', { count: exportCount }),
         action: () => copySelection(toCsv),
+      });
+      multiItems.push({
+        label: t('graph.exportSelectionMarkdown', { count: exportCount }),
+        action: () => saveSelection('markdown'),
+      });
+      multiItems.push({
+        label: t('graph.exportSelectionCsv', { count: exportCount }),
+        action: () => saveSelection('csv'),
       });
       multiItems.push({ separator: true, label: '', action: () => {} });
       multiItems.push({

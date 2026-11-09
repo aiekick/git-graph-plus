@@ -113,5 +113,9 @@
   "remoteBranchDeleted": "리모트 브랜치 '{0}/{1}'이(가) 삭제되었습니다",
   "remoteAdded": "리모트 '{0}'이(가) 추가되었습니다",
   "remoteRemoved": "리모트 '{0}'이(가) 제거되었습니다",
-  "worktreeRemoved": "Worktree가 제거되었습니다"
+  "worktreeRemoved": "Worktree가 제거되었습니다",
+  "exportSelectionMarkdownTitle": "선택한 commit을 Markdown 파일로 내보내기",
+  "exportSelectionCsvTitle": "선택한 commit을 CSV 파일로 내보내기",
+  "selectionExported": "선택 항목을 {0}(으)로 내보냈습니다",
+  "openFile": "열기"
 }

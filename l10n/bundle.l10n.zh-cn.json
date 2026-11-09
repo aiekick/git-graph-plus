@@ -113,5 +113,9 @@
   "remoteBranchDeleted": "远程分支 '{0}/{1}' 已删除",
   "remoteAdded": "远程 '{0}' 已添加",
   "remoteRemoved": "远程 '{0}' 已移除",
-  "worktreeRemoved": "工作树已移除"
+  "worktreeRemoved": "工作树已移除",
+  "exportSelectionMarkdownTitle": "将所选提交导出为 Markdown 文件",
+  "exportSelectionCsvTitle": "将所选提交导出为 CSV 文件",
+  "selectionExported": "已将所选内容导出到 {0}",
+  "openFile": "打开"
 }
