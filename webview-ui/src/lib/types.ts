@@ -85,6 +85,8 @@ export interface CommitGraphData {
   currentLimit?: number;
   /** Active file / line history filter, echoed back by the extension. */
   history?: HistoryFilter | null;
+  /** Active "search in changes" filter, echoed back by the extension. */
+  contentSearch?: ContentSearch | null;
 }
 
 export interface BranchInfo {
@@ -198,4 +200,11 @@ export interface HistoryFilter {
   /** 1-based inclusive line range (`git log -L`); both or neither. */
   startLine?: number;
   endLine?: number;
+}
+
+/** Restricts the graph to the commits whose changes add or remove some text. */
+export interface ContentSearch {
+  text: string;
+  /** false: `git log -S` (occurrence count changes); true: `-G` (regex in changed lines). */
+  regex: boolean;
 }

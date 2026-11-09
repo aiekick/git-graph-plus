@@ -42,7 +42,7 @@ import AmendModal from './components/modals/AmendModal.svelte';
   import { avatarStore } from './lib/stores/avatars.svelte';
   import { receiveSelectionFileStats } from './lib/selection-file-stats';
   import { receiveFileLines } from './lib/file-lines';
-  import HistoryBanner from './components/common/HistoryBanner.svelte';
+  import FilterBanner from './components/common/FilterBanner.svelte';
   import SetUpstreamModal from './components/modals/SetUpstreamModal.svelte';
   import FlowInitModal from './components/modals/FlowInitModal.svelte';
   import FlowStartModal from './components/modals/FlowStartModal.svelte';
@@ -487,12 +487,29 @@ import AmendModal from './components/modals/AmendModal.svelte';
           onBranchFilterChange={handleBranchFilterChange}
           {headOffscreen}
           onJumpToHead={handleJumpToHead}
+          onSearchInChanges={(text, regex) => vscode.postMessage({ type: 'setContentSearch', payload: { text, regex } })}
         />
       {/if}
       {#if commitStore.history}
-        <HistoryBanner
-          filter={commitStore.history}
+        {@const h = commitStore.history}
+        <FilterBanner
+          icon="history"
+          label={h.startLine !== undefined ? t('history.linesOf') : t('history.fileOf')}
+          value={h.path}
+          badge={h.startLine === undefined ? undefined : h.startLine === h.endLine ? `L${h.startLine}` : `L${h.startLine}–${h.endLine}`}
+          note={t('history.renamesNote')}
           onClear={() => vscode.postMessage({ type: 'clearHistoryFilter' })}
+        />
+      {/if}
+      {#if commitStore.contentSearch}
+        {@const cs = commitStore.contentSearch}
+        <FilterBanner
+          icon="diff"
+          label={t('contentSearch.label')}
+          value={cs.text}
+          badge={cs.regex ? 'regex' : undefined}
+          note={cs.regex ? t('contentSearch.noteRegex') : t('contentSearch.noteText')}
+          onClear={() => vscode.postMessage({ type: 'clearContentSearch' })}
         />
       {/if}
       {#if bisectMessage}

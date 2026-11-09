@@ -86,6 +86,8 @@ export interface CommitGraphData {
   branches?: string[];
   /** Active file / line history filter, echoed back to the webview. */
   history?: HistoryFilter | null;
+  /** Active "search in changes" filter, echoed back to the webview. */
+  contentSearch?: ContentSearch | null;
 }
 
 export interface BranchInfo {
@@ -178,6 +180,8 @@ export interface LogOptions {
   /** Only commits touching this file (or line range), with parents rewritten
    *  so the filtered history still forms a connected graph. */
   history?: HistoryFilter;
+  /** Only commits whose diff adds/removes this text (parents rewritten). */
+  contentSearch?: ContentSearch;
 }
 
 /** Per-file line counts of a commit (`git log --numstat`); null for binary files. */
@@ -193,4 +197,11 @@ export interface HistoryFilter {
   /** 1-based inclusive line range (`git log -L`); both or neither. */
   startLine?: number;
   endLine?: number;
+}
+
+/** Restricts the graph to the commits whose changes add or remove some text. */
+export interface ContentSearch {
+  text: string;
+  /** false: `git log -S` (occurrence count changes); true: `-G` (regex in changed lines). */
+  regex: boolean;
 }

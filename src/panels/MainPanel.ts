@@ -6,7 +6,7 @@ import { formatGitError, isAuthFailure, transportFromRemoteUrl } from '../git/gi
 import { splitUpstreamRef } from '../git/git-parser';
 import { samePath } from '../utils/path';
 import { buildXlsx } from '../utils/xlsx-writer';
-import type { HistoryFilter } from '../git/types';
+import type { HistoryFilter, ContentSearch } from '../git/types';
 import { revisionUri } from '../services/revision-content-provider';
 import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars, readCsvDelimiter } from '../utils/config';
 import { buildClassicRebaseCommand } from '../git/classic-rebase';
@@ -51,6 +51,8 @@ export class MainPanel {
   private currentBranchFilter: string[] | undefined = undefined;
   /** File / line history filter shown in the graph (null = full history). */
   private historyFilter: HistoryFilter | null = null;
+  /** "Search in changes" filter shown in the graph (null = none). */
+  private contentSearch: ContentSearch | null = null;
   private isFirstGetLog = true;
   private logSequence = 0;
   private searchSequence = 0;
@@ -384,6 +386,7 @@ export class MainPanel {
     this.currentRemoteFilter = undefined;
     this.currentBranchFilter = undefined;
     this.historyFilter = null;
+    this.contentSearch = null;
 
     const oldWatcher = this.fileWatcher;
     oldWatcher.dispose();
@@ -451,7 +454,7 @@ export class MainPanel {
           this.isFirstGetLog = false;
           this.currentRemoteFilter = effectiveFilter;
           this.currentBranchFilter = effectiveBranchFilter;
-          const logPayload = { ...message.payload, remoteFilter: effectiveFilter, branches: effectiveBranchFilter, limit: requestedLimit + 1, sortOrder, includeSignature, history: this.historyFilter ?? undefined };
+          const logPayload = { ...message.payload, remoteFilter: effectiveFilter, branches: effectiveBranchFilter, limit: requestedLimit + 1, sortOrder, includeSignature, history: this.historyFilter ?? undefined, contentSearch: this.contentSearch ?? undefined };
           const seq = ++this.logSequence;
           const [allFetched, logBranches] = await Promise.all([
             this.gitService.log(logPayload),
@@ -478,8 +481,20 @@ export class MainPanel {
               remoteFilter: effectiveFilter,
               branches: effectiveBranchFilter,
               history: this.historyFilter,
+              contentSearch: this.contentSearch,
             },
           });
+          break;
+        }
+        case 'setContentSearch': {
+          const text = message.payload.text.trim();
+          this.contentSearch = text ? { text, regex: message.payload.regex } : null;
+          await this.refreshAll('status');
+          break;
+        }
+        case 'clearContentSearch': {
+          this.contentSearch = null;
+          await this.refreshAll('status');
           break;
         }
         case 'clearHistoryFilter': {
@@ -1924,7 +1939,8 @@ export class MainPanel {
       const remoteFilter = this.isFirstGetLog ? MainPanel.savedRemoteFilter : this.currentRemoteFilter;
       const branchFilter = this.isFirstGetLog ? MainPanel.savedBranchFilter : this.currentBranchFilter;
       const history = this.historyFilter;
-      const logArgs = { limit: refreshLimit + 1, sortOrder, remoteFilter, branches: branchFilter, includeSignature, history: history ?? undefined };
+      const contentSearch = this.contentSearch;
+      const logArgs = { limit: refreshLimit + 1, sortOrder, remoteFilter, branches: branchFilter, includeSignature, history: history ?? undefined, contentSearch: contentSearch ?? undefined };
 
       const buildLogData = (allFetched: Awaited<ReturnType<typeof this.gitService.log>>, branches: Awaited<ReturnType<typeof this.gitService.branches>>) => {
         const hasMore = allFetched.length > refreshLimit;
@@ -1932,7 +1948,7 @@ export class MainPanel {
         // Handle empty repository (0 commits) gracefully. The webview renders from
         // paths/links/dots; the legacy GraphNode[] is unused so we don't build it.
         const fg = allCommits.length > 0 ? buildFullGraph(allCommits, branches, this.makeBranchColorResolver()) : { paths: [], links: [], dots: [], commitLeftMargin: [] };
-        return { commits: allCommits, hasMore, currentLimit: this.currentLimit, graph: [], paths: fg.paths, links: fg.links, dots: fg.dots, commitLeftMargin: fg.commitLeftMargin, remoteFilter, branches: branchFilter, history };
+        return { commits: allCommits, hasMore, currentLimit: this.currentLimit, graph: [], paths: fg.paths, links: fg.links, dots: fg.dots, commitLeftMargin: fg.commitLeftMargin, remoteFilter, branches: branchFilter, history, contentSearch };
       };
 
       if (scope === 'status') {

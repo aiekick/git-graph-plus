@@ -16,6 +16,9 @@
     onBranchFilterChange?: (filter: string[]) => void;
     headOffscreen?: boolean;
     onJumpToHead?: () => void;
+    /** Filters the graph to commits whose changes contain the query
+     *  (`/.../` → regex). Hidden when not provided. */
+    onSearchInChanges?: (text: string, regex: boolean) => void;
   }
 
   let {
@@ -29,7 +32,17 @@
     onBranchFilterChange = () => {},
     headOffscreen = false,
     onJumpToHead = () => {},
+    onSearchInChanges,
   }: Props = $props();
+
+  // `/pattern/` searches changed lines with a regex (git log -G); anything
+  // else looks for commits adding/removing that exact text (git log -S).
+  function searchInChanges() {
+    const q = query.trim();
+    if (!q || !onSearchInChanges) return;
+    const m = /^\/(.+)\/$/.exec(q);
+    onSearchInChanges(m ? m[1] : q, !!m);
+  }
 
   let query = $state('');
   let matchedHashes = $state<string[]>([]);
@@ -228,6 +241,11 @@
           {t('search.noResults')}
         {/if}
       </span>
+      {#if onSearchInChanges}
+        <button class="nav-btn" onclick={searchInChanges} aria-label={t('search.inChanges')} use:tooltip={t('search.inChanges')}>
+          <i class="codicon codicon-diff"></i>
+        </button>
+      {/if}
       <span class="nav-divider"></span>
       <button class="nav-btn" onclick={navigatePrev} disabled={matchedHashes.length === 0} aria-label={t('search.prev')} use:tooltip={t('search.prev')}>
         <i class="codicon codicon-chevron-up"></i>

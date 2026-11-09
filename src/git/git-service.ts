@@ -16,6 +16,7 @@ const DEFAULT_MAX_BUFFER_BYTES = 256 * 1024 * 1024;
 import { parseLog, parseBranches, parseTags, parseRemotes, parseStashList, parseDiff, parseWorktreeList, parseLfsFiles, parseLfsLocks, mapSignatureStatus, parseNumstatLog } from './git-parser';
 import { buildReversePatch } from './patch-builder';
 import { mapOldLineToNew } from './line-map';
+import { parseRevListParents, rewriteParents } from './parent-rewrite';
 import type { Commit, BranchInfo, TagInfo, RemoteInfo, StashEntry, LogOptions, DiffData, WorktreeInfo, CommitSignature, FileStat } from './types';
 
 export class GitError extends Error {
@@ -555,8 +556,20 @@ export class GitService {
     // instead of attaching to the tree (#52). Restrict this to the unfiltered
     // first page: with branch/remote filters or pagination the extra ancestry
     // would leak commits outside the requested scope.
+    // Search in changes (pickaxe). git keeps the original parents for this
+    // filter, so they're rewritten below to the nearest matching ancestors.
+    const content = options?.contentSearch;
+    if (content) {
+      // eslint-disable-next-line no-control-regex
+      if (!content.text || /[\x00-\x1f\x7f]/.test(content.text)) {
+        throw new GitError('Invalid search text', null, ['log']);
+      }
+      args.push(content.regex ? `-G${content.text}` : `-S${content.text}`);
+    }
+
     if (
       !history &&
+      !content &&
       !options?.skip &&
       !options?.branch &&
       (!options?.branches || options.branches.length === 0) &&
@@ -572,15 +585,27 @@ export class GitService {
       }
     }
 
-    if (history && history.startLine === undefined) args.push('--', history.path);
+    // Revisions the log walks from (branch names / globs), for the ancestry
+    // walk that reconnects a content-search result.
+    const revArgs = args.slice(2).filter(a => a.startsWith('--glob=') || !a.startsWith('-'));
+    const pathOnly = history && history.startLine === undefined;
+    if (pathOnly) args.push('--', history.path);
 
     const [raw, remoteNames] = await Promise.all([
       this.exec(args),
       this.getRemoteNames(),
     ]);
     const commits = parseLog(raw, remoteNames);
-    // A history view shows commits only: no stash rows, no uncommitted row.
-    if (history) return commits;
+    if (content && commits.length > 0) {
+      const ancestry = await this.exec(
+        ['rev-list', '--parents', '--topo-order', ...revArgs, ...(pathOnly ? ['--', history.path] : [])],
+        { silent: true },
+      );
+      const rewritten = rewriteParents(new Set(commits.map(c => c.hash)), parseRevListParents(ancestry));
+      for (const c of commits) c.parents = rewritten.get(c.hash) ?? [];
+    }
+    // A filtered view shows commits only: no stash rows, no uncommitted row.
+    if (history || content) return commits;
 
     // Insert stash commits into the graph as separate rows
     if (stashes.length > 0) {

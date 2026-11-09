@@ -47,6 +47,7 @@ A modern, full-featured Git GUI for VS Code. Visualize your commit history, mana
 | **Diff Context & Open** | Expand the hidden lines around each hunk, and double-click a line to open that version of the file at that line (or the current file at the matching place) |
 | **Restore File Version** | Right-click a file in a commit to restore it in the working tree as it was at that commit or just before it |
 | **File & Line History** | Right-click a file (explorer, editor tab or editor) → **Show File History**, or select lines → **Show Line History**: the graph shows only the commits touching it |
+| **Search in Changes**  | Type text in the search box and click the diff button to keep only the commits whose changes add/remove it (`/regex/` matches changed lines) |
 | **Markdown Messages**   | Commit messages containing Markdown render formatted in the details panel, with a Markdown/Plain toggle               |
 | **Commit Links**        | Issue, PR, and merge-request references in commit messages become clickable links - GitHub/GitLab auto-detected from `origin`, plus custom regex rules |
 | **Commit Comparison**   | Select a base commit, then click another to compare - select multiple commits to toggle a combined changes panel, or compare any commit to your working tree |

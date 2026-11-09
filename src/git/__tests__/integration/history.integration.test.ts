@@ -39,4 +39,23 @@ describe('GitService integration — file / line history', () => {
   it('rejects an invalid line range', async () => {
     await expect(svc.log({ history: { path: 'f.txt', startLine: 3, endLine: 1 } })).rejects.toThrow();
   });
+
+  it('searches in changes (-S) and reconnects the matches through skipped commits', async () => {
+    // c1 adds "d", c5 changes "d" → "D": both change the count of "d".
+    const commits = await svc.log({ contentSearch: { text: 'd', regex: false } });
+    expect(commits.map(c => c.hash)).toEqual([c5, c1]);
+    expect(commits[0].parents).toEqual([c1]);
+    expect(commits.some(c => c.hash === 'UNCOMMITTED')).toBe(false);
+  });
+
+  it('searches changed lines with a regex (-G)', async () => {
+    const commits = await svc.log({ contentSearch: { text: '^[A-Z]$', regex: true } });
+    expect(commits.map(c => c.hash)).toEqual([c5, c3]);
+    expect(commits[0].parents).toEqual([c3]);
+  });
+
+  it('combines a content search with a file history', async () => {
+    const commits = await svc.log({ history: { path: 'other.txt' }, contentSearch: { text: 'y', regex: false } });
+    expect(commits.map(c => c.subject)).toEqual(['touch other again']);
+  });
 });

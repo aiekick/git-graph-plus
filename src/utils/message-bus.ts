@@ -115,6 +115,8 @@ export type WebviewMessage =
   | { type: 'openFileAtRef'; payload: { ref: string; path: string; line: number } }
   | { type: 'restoreFilesFromRef'; payload: { ref: string; paths: string[] } }
   | { type: 'clearHistoryFilter' }
+  | { type: 'setContentSearch'; payload: { text: string; regex: boolean } }
+  | { type: 'clearContentSearch' }
   | { type: 'openWorkingFileAtLine'; payload: { ref: string; path: string; line: number } }
   | { type: 'saveSelectionExport'; payload: { format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable } }
   | { type: 'saveCommitPatch'; payload: { hash: string; paths?: string[] } }
