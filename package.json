@@ -2,11 +2,11 @@
   "name": "git-graph-plus",
   "displayName": "Git Graph Plus",
   "description": "A modern, full-featured Git GUI for VS Code",
-  "version": "0.7.3",
-  "publisher": "the0807",
+  "version": "0.7.4",
+  "publisher": "aiekick",
   "repository": {
     "type": "git",
-    "url": "https://github.com/the0807/git-graph-plus"
+    "url": "https://github.com/aiekick/git-graph-plus"
   },
   "license": "Apache-2.0",
   "icon": "resources/icon-marketplace.png",
@@ -438,6 +438,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show a GPG/SSH signature status icon next to each commit in the graph. ⚠️ This verifies the signature of every commit in the log, which can slow down loading on very large repositories — turn it off if you notice slow graph loading. The Commit Details panel always shows signature status on demand regardless of this setting."
+        },
+        "gitGraphPlus.showAvatars": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show author avatars from gravatar.com in the graph, commit details, hover card and stats. Each avatar request sends the MD5 hash of the author's email to gravatar.com — the only network request Git Graph+ makes on its own. Turn it off to keep commit authors private (no request is sent)."
         },
         "gitGraphPlus.branchBadgeBarThickness": {
           "type": "string",

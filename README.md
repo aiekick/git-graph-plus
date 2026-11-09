@@ -10,6 +10,8 @@
 
 [한국어](README.ko.md)
 
+> **This is a fork.** This repository is a fork of [the0807/git-graph-plus](https://github.com/the0807/git-graph-plus) by [the0807](https://github.com/the0807), licensed under Apache-2.0. It follows upstream and adds its own features, starting with version 0.7.4; see the [changelog](CHANGELOG.md) for what this fork changes. Credit for the original extension goes to its author. Please report issues about this fork's features here, not upstream.
+
 A modern, full-featured Git GUI for VS Code. Visualize your commit history, manage branches, and perform advanced git operations - all without leaving your editor.
 
 > Staging, committing, and inline blame use VS Code's built-in Source Control. Git Graph+ focuses on everything else.
@@ -51,7 +53,7 @@ A modern, full-featured Git GUI for VS Code. Visualize your commit history, mana
 | **Branch Filter**       | Filter the commit graph to show only commits reachable from a selected branch                                         |
 | **Uncommitted Changes** | Shows pending uncommitted changes as a virtual node. Clicking it opens the VS Code SCM view for staging/committing. |
 | **Push Status**         | Blue dot for local-only commits (not pushed), gray dot for remote-only commits (remote ahead)                         |
-| **Avatars**             | Gravatar avatars displayed next to author names                                                                       |
+| **Avatars**             | Gravatar avatars displayed next to author names (can be turned off with `gitGraphPlus.showAvatars`)                  |
 | **Themes**              | Full support for light, dark, and high-contrast VS Code themes                                                        |
 
 ### Branch & Tag Management
@@ -191,6 +193,7 @@ A modern, full-featured Git GUI for VS Code. Visualize your commit history, mana
 | `gitGraphPlus.graphSortOrder`          | `topological` | Commit sort order (`topological`, `date`, `author-date`) |
 | `gitGraphPlus.interactiveRebase.mode`  | `ui`          | Interactive rebase mode (`ui` visual editor, `classic` `git rebase -i` in a terminal) |
 | `gitGraphPlus.showSignatureStatus`     | `true`        | Show GPG/SSH signature status in the graph               |
+| `gitGraphPlus.showAvatars`             | `true`        | Show author avatars from gravatar.com (off = no network request sent for avatars) |
 | `gitGraphPlus.commitMessageLinks`      | `[]`          | Custom `{ pattern, url }` regex rules that turn commit-message text into clickable links |
 | `gitGraphPlus.autoDetectRepoLinks`     | `true`        | Auto-link `#123` issues (github.com/gitlab.com) and `!123` GitLab MRs from the `origin` remote |
 | `gitGraphPlus.branchBadgeBarThickness` | `thin`        | Branch badge bar thickness (`thin`, `medium`, `thick`)   |

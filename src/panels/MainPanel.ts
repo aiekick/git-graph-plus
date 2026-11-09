@@ -5,7 +5,7 @@ import { GitService, GitError } from '../git/git-service';
 import { formatGitError, isAuthFailure, transportFromRemoteUrl } from '../git/git-error-formatter';
 import { splitUpstreamRef } from '../git/git-parser';
 import { samePath } from '../utils/path';
-import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode } from '../utils/config';
+import { readTimeoutMs, readInitialCommitCount, readLoadMoreCommitCount, readInteractiveRebaseMode, readShowAvatars } from '../utils/config';
 import { buildClassicRebaseCommand } from '../git/classic-rebase';
 import { buildFullGraph } from '../git/git-graph-builder';
 import { compileBranchColorRules, makeBranchColorResolver } from '../git/branch-color-resolver';
@@ -241,6 +241,9 @@ export class MainPanel {
         if (e.affectsConfiguration('gitGraphPlus.timeout')) {
           this.gitService.setDefaultTimeout(readTimeoutMs());
         }
+        if (e.affectsConfiguration('gitGraphPlus.showAvatars')) {
+          this.post({ type: 'setShowAvatars', payload: { enabled: readShowAvatars() } });
+        }
       })
     );
 
@@ -256,6 +259,7 @@ export class MainPanel {
     this.post({ type: 'setGraphColors', payload: { colors: this.readGraphColors() } });
     this.post({ type: 'setLoadMoreCount', payload: { count: readLoadMoreCommitCount() } });
     this.post({ type: 'setInteractiveRebaseMode', payload: { mode: readInteractiveRebaseMode() } });
+    this.post({ type: 'setShowAvatars', payload: { enabled: readShowAvatars() } });
     void this.postCommitLinkRules();
 
     this.panel.webview.onDidReceiveMessage(
@@ -1444,7 +1448,9 @@ export class MainPanel {
         // --- Avatar (cached in the extension host; see AvatarCache) ---
         case 'getAvatar': {
           const { email, size } = message.payload;
-          const dataUri = await MainPanel.getAvatarCache().get(email, size);
+          // Never reach gravatar.com when avatars are turned off, even if a
+          // stale webview still asks.
+          const dataUri = readShowAvatars() ? await MainPanel.getAvatarCache().get(email, size) : null;
           this.post({ type: 'avatarData', payload: { email, size, dataUri } });
           break;
         }

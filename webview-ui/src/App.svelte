@@ -121,6 +121,9 @@ import AmendModal from './components/modals/AmendModal.svelte';
         case 'setGraphColors':
           graphColorsStore.set(msg.payload.colors);
           break;
+        case 'setShowAvatars':
+          avatarStore.enabled = msg.payload.enabled;
+          break;
         case 'setCommitLinkRules':
           commitLinkRulesStore.set(msg.payload.rules);
           break;

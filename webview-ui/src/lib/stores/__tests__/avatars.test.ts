@@ -49,4 +49,18 @@ describe('avatarStore', () => {
     avatarStore.receive('Fifth@Example.com', 32, 'data:image/png;base64,BBBB');
     expect(avatarStore.url('  fifth@example.com  ', 32)).toBe('data:image/png;base64,BBBB');
   });
+
+  it('never requests an avatar while disabled (gitGraphPlus.showAvatars = false)', () => {
+    avatarStore.enabled = false;
+    try {
+      const countBefore = globalThis.__postedMessages.length;
+      expect(avatarStore.url('sixth@example.com', 32)).toBe(TRANSPARENT_PIXEL);
+      expect(globalThis.__postedMessages.length).toBe(countBefore);
+    } finally {
+      avatarStore.enabled = true;
+    }
+    // Re-enabling resumes requests for keys skipped while disabled.
+    avatarStore.url('sixth@example.com', 32);
+    expect(postedTypes().at(-1)).toBe('getAvatar');
+  });
 });

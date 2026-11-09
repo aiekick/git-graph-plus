@@ -160,6 +160,7 @@ export type ExtensionMessage =
   | { type: 'setLoadMoreCount'; payload: { count: number } }
   | { type: 'setBadgeBarThickness'; payload: { width: number } }
   | { type: 'setGraphColors'; payload: { colors: string[] } }
+  | { type: 'setShowAvatars'; payload: { enabled: boolean } }
   | { type: 'setCommitLinkRules'; payload: { rules: LinkRule[] } }
   | { type: 'repoList'; payload: { repos: Array<{ path: string; name: string; type: 'root' | 'submodule' | 'nested' }>; active: string } }
   | { type: 'worktreeData'; payload: WorktreeInfo[] }

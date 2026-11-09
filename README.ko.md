@@ -191,6 +191,7 @@ VS Code를 위한 모던 Git GUI. 커밋 히스토리를 시각화하고, 브랜
 | `gitGraphPlus.graphSortOrder`          | `topological` | 커밋 정렬 순서 (`topological`, `date`, `author-date`) |
 | `gitGraphPlus.interactiveRebase.mode`  | `ui`          | Interactive rebase 모드 (`ui` 시각적 편집기, `classic` 터미널에서 `git rebase -i`) |
 | `gitGraphPlus.showSignatureStatus`     | `true`        | 그래프에 GPG/SSH 서명 상태 표시                       |
+| `gitGraphPlus.showAvatars`             | `true`        | gravatar.com 작성자 아바타 표시 (끄면 아바타 요청을 보내지 않음) |
 | `gitGraphPlus.commitMessageLinks`      | `[]`          | 커밋 메시지 텍스트를 클릭 가능한 링크로 만드는 사용자 정의 `{ pattern, url }` 정규식 규칙 |
 | `gitGraphPlus.autoDetectRepoLinks`     | `true`        | `origin` 리모트 기반으로 `#123` 이슈(github.com/gitlab.com)와 `!123` GitLab MR 자동 링크 |
 | `gitGraphPlus.branchBadgeBarThickness` | `thin`        | 브랜치 배지 색상 바 두께 (`thin`, `medium`, `thick`)  |

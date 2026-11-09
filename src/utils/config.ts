@@ -47,3 +47,12 @@ export function readInteractiveRebaseMode(): InteractiveRebaseMode {
     vscode.workspace.getConfiguration('gitGraphPlus').get<string>('interactiveRebase.mode', 'ui'),
   );
 }
+
+/**
+ * Reads `gitGraphPlus.showAvatars` — whether author avatars are fetched from
+ * gravatar.com (the only network request the extension makes on its own) and
+ * shown. When false, no request leaves the machine. Defaults to true.
+ */
+export function readShowAvatars(): boolean {
+  return vscode.workspace.getConfiguration('gitGraphPlus').get<boolean>('showAvatars', true) !== false;
+}

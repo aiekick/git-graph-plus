@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.4 (unreleased)
+
+First release of the [aiekick/git-graph-plus](https://github.com/aiekick/git-graph-plus) fork, based on upstream 0.7.3.
+
+### New Features
+- **Avatar Privacy** - A new `gitGraphPlus.showAvatars` setting hides author avatars and stops every request to gravatar.com, the only network call Git Graph+ makes on its own. Changing it applies immediately to the open graph.
+
 ## 0.7.3 (2026-06-30)
 
 ### Bug Fixes
