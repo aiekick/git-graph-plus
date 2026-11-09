@@ -118,5 +118,10 @@
   "exportSelectionCsvTitle": "将所选提交导出为 CSV 文件",
   "selectionExported": "已将所选内容导出到 {0}",
   "openFile": "打开",
-  "exportSelectionXlsxTitle": "将所选提交导出为 Excel 文件"
+  "exportSelectionXlsxTitle": "将所选提交导出为 Excel 文件",
+  "nFiles": "{0} 个文件",
+  "restore": "恢复",
+  "restoreFilesConfirm": "将工作区中的 {0} 恢复为 {1} 时的版本？",
+  "restoreFilesDetail": "这些文件未提交的更改将丢失。不会修改暂存区；在该版本中不存在的文件将被删除。",
+  "filesRestored": "已从 {2} 恢复 {0} 个文件，删除 {1} 个"
 }

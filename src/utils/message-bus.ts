@@ -113,6 +113,7 @@ export type WebviewMessage =
   // ref: a commit-ish, 'index' (staged version) or 'working' (file on disk)
   | { type: 'getFileLines'; payload: { requestId: string; ref: string; path: string } }
   | { type: 'openFileAtRef'; payload: { ref: string; path: string; line: number } }
+  | { type: 'restoreFilesFromRef'; payload: { ref: string; paths: string[] } }
   | { type: 'openWorkingFileAtLine'; payload: { ref: string; path: string; line: number } }
   | { type: 'saveSelectionExport'; payload: { format: 'markdown' | 'csv'; text: string } | { format: 'xlsx'; table: XlsxTable } }
   | { type: 'saveCommitPatch'; payload: { hash: string; paths?: string[] } }

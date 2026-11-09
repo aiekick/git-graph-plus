@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { GitService } from '../../git-service';
 import { TempRepo, commit, createTempRepo, runGit } from './helpers';
@@ -46,5 +46,21 @@ describe('GitService integration — file at a revision', () => {
     expect(await svc.mapLineToWorkingTree(old, 'f.txt', 10)).toBe(13);
     expect(await svc.mapLineToWorkingTree(old, 'f.txt', 30)).toBe(32);
     expect(await svc.mapLineToWorkingTree('working', 'f.txt', 30)).toBe(30);
+  });
+
+  it('restores files in the working tree from a revision, deleting those absent there', async () => {
+    const before = commit(repo.path, 'before', { 'a.txt': 'a1\n', 'b.txt': 'b1\n' });
+    const added = commit(repo.path, 'add c, edit a', { 'a.txt': 'a2\n', 'c.txt': 'c\n' });
+    writeFileSync(join(repo.path, 'a.txt'), 'local edit\n');
+
+    const res = await svc.restoreFilesFromRef(before, ['a.txt', 'c.txt']);
+    expect(res).toEqual({ restored: ['a.txt'], deleted: ['c.txt'] });
+    expect(readFileSync(join(repo.path, 'a.txt'), 'utf8')).toBe('a1\n');
+    expect(existsSync(join(repo.path, 'c.txt'))).toBe(false);
+    // Index untouched: a.txt still staged as in HEAD.
+    expect(runGit(repo.path, ['show', ':a.txt'])).toBe('a2\n');
+
+    await svc.restoreFilesFromRef(added, ['c.txt']);
+    expect(readFileSync(join(repo.path, 'c.txt'), 'utf8')).toBe('c\n');
   });
 });

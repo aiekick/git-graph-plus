@@ -975,6 +975,33 @@
                       },
                     });
 
+                    // Restore the file(s) in the working tree as they were at
+                    // this commit, or just before it (first parent).
+                    if (commit && commit.hash !== 'UNCOMMITTED') {
+                      const restoreHash = commit.hash;
+                      const hasParent = commit.parents.length > 0;
+                      const restoreMultiSel = selectedPatchFiles.has(node.path) && selectedPatchFiles.size >= 2;
+                      const restoreSel = restoreMultiSel ? [...selectedPatchFiles] : [node.path];
+                      const suffix = restoreMultiSel ? ` (${restoreSel.length})` : '';
+                      items.push({ separator: true, label: '', action: () => {} });
+                      items.push({
+                        label: t('file.restoreAtCommit') + suffix,
+                        action: () => {
+                          vscode.postMessage({ type: 'restoreFilesFromRef', payload: { ref: restoreHash, paths: restoreSel } });
+                          fileContextMenu = null;
+                        },
+                      });
+                      if (hasParent) {
+                        items.push({
+                          label: t('file.restoreBeforeCommit') + suffix,
+                          action: () => {
+                            vscode.postMessage({ type: 'restoreFilesFromRef', payload: { ref: `${restoreHash}^`, paths: restoreSel } });
+                            fileContextMenu = null;
+                          },
+                        });
+                      }
+                    }
+
                     // Reverse this file's change against the working tree.
                     if (commit && canReverseInThisView) {
                       const hash = commit.hash;

@@ -118,5 +118,10 @@
   "exportSelectionCsvTitle": "Export selected commits to a CSV file",
   "selectionExported": "Selection exported to {0}",
   "openFile": "Open",
-  "exportSelectionXlsxTitle": "Export selected commits to an Excel file"
+  "exportSelectionXlsxTitle": "Export selected commits to an Excel file",
+  "nFiles": "{0} files",
+  "restore": "Restore",
+  "restoreFilesConfirm": "Restore {0} in the working tree as it was at {1}?",
+  "restoreFilesDetail": "Uncommitted changes to these files will be lost. The index is not touched; a file that doesn't exist at that revision is deleted.",
+  "filesRestored": "{0} file(s) restored, {1} deleted, from {2}"
 }

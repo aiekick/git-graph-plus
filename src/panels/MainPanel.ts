@@ -1301,6 +1301,22 @@ export class MainPanel {
           this.post({ type: 'fileLines', payload: { requestId, lines } });
           break;
         }
+        case 'restoreFilesFromRef': {
+          const { ref, paths } = message.payload;
+          const short = /^[0-9a-f]{40}\^?$/i.test(ref) ? ref.slice(0, 7) + (ref.endsWith('^') ? '^' : '') : ref;
+          const what = paths.length === 1 ? paths[0] : vscode.l10n.t('nFiles', paths.length);
+          const confirm = vscode.l10n.t('restore');
+          const choice = await vscode.window.showWarningMessage(
+            vscode.l10n.t('restoreFilesConfirm', what, short),
+            { modal: true, detail: vscode.l10n.t('restoreFilesDetail') },
+            confirm,
+          );
+          if (choice !== confirm) break;
+          const { restored, deleted } = await this.gitService.restoreFilesFromRef(ref, paths);
+          vscode.window.showInformationMessage(vscode.l10n.t('filesRestored', restored.length, deleted.length, short));
+          await this.refreshAll();
+          break;
+        }
         case 'openFileAtRef': {
           const { ref, path: filePath, line } = message.payload;
           const uri = ref === 'working'

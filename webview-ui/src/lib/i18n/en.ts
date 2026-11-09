@@ -664,6 +664,8 @@ export const en: Record<string, string> = {
   'file.restoreStashFromSelected': 'Restore {count} selected files from stash',
   'file.restoreStashFromFolder': 'Restore folder from stash',
   'file.reverseFile': 'Reverse File',
+  'file.restoreAtCommit': 'Restore this version to working tree',
+  'file.restoreBeforeCommit': 'Restore version before this commit',
   'file.reverseHunk': 'Reverse Hunk',
   'file.reverseLines': 'Reverse Selected Lines',
   'file.lines': 'Lines',

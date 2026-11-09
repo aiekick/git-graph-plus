@@ -665,6 +665,8 @@ export const zh: Record<string, string> = {
   'file.restoreStashFromSelected': '从储藏恢复选中的 {count} 个文件',
   'file.restoreStashFromFolder': '从储藏恢复文件夹',
   'file.reverseFile': '还原文件更改',
+  'file.restoreAtCommit': '将此版本恢复到工作区',
+  'file.restoreBeforeCommit': '恢复为此提交之前的版本',
   'file.reverseHunk': '还原 Hunk 更改',
   'file.reverseLines': '还原选定行',
   'file.lines': '行',

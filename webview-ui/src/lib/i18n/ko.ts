@@ -665,6 +665,8 @@ export const ko: Record<string, string> = {
   'file.restoreStashFromSelected': '선택한 {count}개 파일을 Stash에서 복원',
   'file.restoreStashFromFolder': '이 폴더를 Stash에서 복원',
   'file.reverseFile': '파일 변경 되돌리기',
+  'file.restoreAtCommit': '이 버전을 작업 트리로 복원',
+  'file.restoreBeforeCommit': '이 커밋 이전 버전으로 복원',
   'file.reverseHunk': 'Hunk 변경 되돌리기',
   'file.reverseLines': '선택한 줄 되돌리기',
   'file.lines': '줄',

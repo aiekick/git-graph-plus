@@ -118,5 +118,10 @@
   "exportSelectionCsvTitle": "선택한 commit을 CSV 파일로 내보내기",
   "selectionExported": "선택 항목을 {0}(으)로 내보냈습니다",
   "openFile": "열기",
-  "exportSelectionXlsxTitle": "선택한 commit을 Excel 파일로 내보내기"
+  "exportSelectionXlsxTitle": "선택한 commit을 Excel 파일로 내보내기",
+  "nFiles": "파일 {0}개",
+  "restore": "복원",
+  "restoreFilesConfirm": "작업 트리의 {0}을(를) {1} 시점으로 복원할까요?",
+  "restoreFilesDetail": "이 파일들의 커밋되지 않은 변경 사항이 사라집니다. 인덱스는 변경되지 않으며, 해당 리비전에 없는 파일은 삭제됩니다.",
+  "filesRestored": "{2}에서 파일 {0}개 복원, {1}개 삭제"
 }

@@ -2417,6 +2417,31 @@ export class GitService {
     }
   }
 
+  // --- Restore files as they were at a revision ---
+
+  /**
+   * Puts `paths` in the working tree back to their content at `ref` (the index
+   * is left alone, like the reverse actions). A file that doesn't exist at
+   * `ref` is deleted from the working tree. Returns what was done per path.
+   */
+  async restoreFilesFromRef(ref: string, paths: string[]): Promise<{ restored: string[]; deleted: string[] }> {
+    this.assertSafeRef(ref, 'restore');
+    for (const p of paths) this.assertSafePath(p, 'restore');
+    const restored: string[] = [];
+    const deleted: string[] = [];
+    for (const p of paths) {
+      if (await this.fileExistsAtRef(ref, p)) restored.push(p);
+      else deleted.push(p);
+    }
+    if (restored.length > 0) {
+      await this.exec(['restore', `--source=${ref}`, '--worktree', '--', ...restored]);
+    }
+    for (const p of deleted) {
+      await unlink(join(this.repoPath, p)).catch(() => {}); // already absent: nothing to do
+    }
+    return { restored, deleted };
+  }
+
   // --- Text file at a revision (diff context / open at revision) ---
 
   /**
